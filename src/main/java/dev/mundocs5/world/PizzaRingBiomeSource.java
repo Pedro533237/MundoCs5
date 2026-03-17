@@ -1,11 +1,13 @@
 package dev.mundocs5.world;
 
+import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import java.util.List;
 import java.util.stream.Stream;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.entry.RegistryElementCodec;
 import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.util.dynamic.Codecs;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.source.BiomeSource;
@@ -20,14 +22,16 @@ import net.minecraft.world.biome.source.util.MultiNoiseUtil;
  * 4) fora = vanilla (fallback para MultiNoise)
  */
 public class PizzaRingBiomeSource extends BiomeSource {
+    private static final Codec<RegistryEntry<Biome>> BIOME_CODEC = RegistryElementCodec.of(RegistryKeys.BIOME);
+
     public static final MapCodec<PizzaRingBiomeSource> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             MultiNoiseBiomeSource.CODEC.fieldOf("vanilla").forGetter(PizzaRingBiomeSource::vanillaBiomeSource),
-            Biome.REGISTRY_ENTRY_CODEC.listOf().fieldOf("pizza_biomes").forGetter(PizzaRingBiomeSource::pizzaBiomes),
-            Biome.REGISTRY_ENTRY_CODEC.fieldOf("center_biome").forGetter(PizzaRingBiomeSource::centerBiome),
-            Biome.REGISTRY_ENTRY_CODEC.listOf().fieldOf("ocean_biomes").forGetter(PizzaRingBiomeSource::oceanBiomes),
-            Codecs.NONNEGATIVE_INT.optionalFieldOf("center_radius", 200).forGetter(PizzaRingBiomeSource::centerRadius),
-            Codecs.NONNEGATIVE_INT.optionalFieldOf("pizza_radius", 2000).forGetter(PizzaRingBiomeSource::pizzaRadius),
-            Codecs.NONNEGATIVE_INT.optionalFieldOf("ocean_radius", 2600).forGetter(PizzaRingBiomeSource::oceanRadius)
+            BIOME_CODEC.listOf().fieldOf("pizza_biomes").forGetter(PizzaRingBiomeSource::pizzaBiomes),
+            BIOME_CODEC.fieldOf("center_biome").forGetter(PizzaRingBiomeSource::centerBiome),
+            BIOME_CODEC.listOf().fieldOf("ocean_biomes").forGetter(PizzaRingBiomeSource::oceanBiomes),
+            Codec.intRange(0, Integer.MAX_VALUE).optionalFieldOf("center_radius", 200).forGetter(PizzaRingBiomeSource::centerRadius),
+            Codec.intRange(0, Integer.MAX_VALUE).optionalFieldOf("pizza_radius", 2000).forGetter(PizzaRingBiomeSource::pizzaRadius),
+            Codec.intRange(0, Integer.MAX_VALUE).optionalFieldOf("ocean_radius", 2600).forGetter(PizzaRingBiomeSource::oceanRadius)
     ).apply(instance, PizzaRingBiomeSource::new));
 
     private final MultiNoiseBiomeSource vanillaBiomeSource;
