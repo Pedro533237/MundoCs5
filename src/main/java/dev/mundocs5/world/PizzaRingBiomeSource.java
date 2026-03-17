@@ -22,7 +22,7 @@ import net.minecraft.world.biome.source.util.MultiNoiseUtil;
  * 4) fora = vanilla (fallback para MultiNoise)
  */
 public class PizzaRingBiomeSource extends BiomeSource {
-    private static final Codec<RegistryEntry<Biome>> BIOME_CODEC = RegistryElementCodec.of(RegistryKeys.BIOME);
+    private static final Codec<RegistryEntry<Biome>> BIOME_CODEC = RegistryElementCodec.of(RegistryKeys.BIOME, Biome.CODEC);
 
     public static final MapCodec<PizzaRingBiomeSource> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             MultiNoiseBiomeSource.CODEC.fieldOf("vanilla").forGetter(PizzaRingBiomeSource::vanillaBiomeSource),
