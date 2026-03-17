@@ -1,11 +1,11 @@
 package dev.mundocs5.world;
 
-import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import java.util.List;
 import java.util.stream.Stream;
-import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.util.dynamic.Codecs;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.source.BiomeSource;
@@ -20,14 +20,14 @@ import net.minecraft.world.biome.source.util.MultiNoiseUtil;
  * 4) fora = vanilla (fallback para MultiNoise)
  */
 public class PizzaRingBiomeSource extends BiomeSource {
-    public static final Codec<PizzaRingBiomeSource> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            MultiNoiseBiomeSource.CODEC.fieldOf("vanilla").forGetter(source -> source.vanillaBiomeSource),
-            Codec.list(RegistryEntry.createCodec(RegistryKeys.BIOME)).fieldOf("pizza_biomes").forGetter(source -> source.pizzaBiomes),
-            RegistryEntry.createCodec(RegistryKeys.BIOME).fieldOf("center_biome").forGetter(source -> source.centerBiome),
-            Codec.list(RegistryEntry.createCodec(RegistryKeys.BIOME)).fieldOf("ocean_biomes").forGetter(source -> source.oceanBiomes),
-            Codec.INT.optionalFieldOf("center_radius", 200).forGetter(source -> source.centerRadius),
-            Codec.INT.optionalFieldOf("pizza_radius", 2000).forGetter(source -> source.pizzaRadius),
-            Codec.INT.optionalFieldOf("ocean_radius", 2600).forGetter(source -> source.oceanRadius)
+    public static final MapCodec<PizzaRingBiomeSource> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+            MultiNoiseBiomeSource.CODEC.fieldOf("vanilla").forGetter(PizzaRingBiomeSource::vanillaBiomeSource),
+            Biome.REGISTRY_ENTRY_CODEC.listOf().fieldOf("pizza_biomes").forGetter(PizzaRingBiomeSource::pizzaBiomes),
+            Biome.REGISTRY_ENTRY_CODEC.fieldOf("center_biome").forGetter(PizzaRingBiomeSource::centerBiome),
+            Biome.REGISTRY_ENTRY_CODEC.listOf().fieldOf("ocean_biomes").forGetter(PizzaRingBiomeSource::oceanBiomes),
+            Codecs.NONNEGATIVE_INT.optionalFieldOf("center_radius", 200).forGetter(PizzaRingBiomeSource::centerRadius),
+            Codecs.NONNEGATIVE_INT.optionalFieldOf("pizza_radius", 2000).forGetter(PizzaRingBiomeSource::pizzaRadius),
+            Codecs.NONNEGATIVE_INT.optionalFieldOf("ocean_radius", 2600).forGetter(PizzaRingBiomeSource::oceanRadius)
     ).apply(instance, PizzaRingBiomeSource::new));
 
     private final MultiNoiseBiomeSource vanillaBiomeSource;
@@ -38,6 +38,35 @@ public class PizzaRingBiomeSource extends BiomeSource {
     private final int pizzaRadius;
     private final int oceanRadius;
 
+
+    private MultiNoiseBiomeSource vanillaBiomeSource() {
+        return vanillaBiomeSource;
+    }
+
+    private List<RegistryEntry<Biome>> pizzaBiomes() {
+        return pizzaBiomes;
+    }
+
+    private RegistryEntry<Biome> centerBiome() {
+        return centerBiome;
+    }
+
+    private List<RegistryEntry<Biome>> oceanBiomes() {
+        return oceanBiomes;
+    }
+
+    private int centerRadius() {
+        return centerRadius;
+    }
+
+    private int pizzaRadius() {
+        return pizzaRadius;
+    }
+
+    private int oceanRadius() {
+        return oceanRadius;
+    }
+
     public PizzaRingBiomeSource(
             MultiNoiseBiomeSource vanillaBiomeSource,
             List<RegistryEntry<Biome>> pizzaBiomes,
@@ -47,7 +76,6 @@ public class PizzaRingBiomeSource extends BiomeSource {
             int pizzaRadius,
             int oceanRadius
     ) {
-        super(Stream.concat(Stream.concat(pizzaBiomes.stream(), oceanBiomes.stream()), Stream.of(centerBiome)).toList());
         this.vanillaBiomeSource = vanillaBiomeSource;
         this.pizzaBiomes = pizzaBiomes;
         this.centerBiome = centerBiome;
@@ -58,8 +86,13 @@ public class PizzaRingBiomeSource extends BiomeSource {
     }
 
     @Override
-    protected Codec<? extends BiomeSource> getCodec() {
+    protected MapCodec<? extends BiomeSource> getCodec() {
         return CODEC;
+    }
+
+    @Override
+    protected Stream<RegistryEntry<Biome>> biomeStream() {
+        return Stream.concat(Stream.concat(pizzaBiomes.stream(), oceanBiomes.stream()), Stream.of(centerBiome));
     }
 
     @Override
