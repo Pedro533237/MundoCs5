@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "mundocs5",
+  "version": "${version}",
+  "name": "MundoCs5",
+  "description": "Worldgen radial com centro de cogumelo + anel pizza + fallback vanilla.",
+  "authors": ["MundoCs5"],
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "dev.mundocs5.MundoCs5Mod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.14",
+    "minecraft": "~1.21.9",
+    "java": ">=21"
+  }
+}
