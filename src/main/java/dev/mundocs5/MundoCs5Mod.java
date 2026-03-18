@@ -1,9 +1,6 @@
 package dev.mundocs5;
 
-import dev.mundocs5.world.PizzaBiomeSource;
 import net.fabricmc.api.ModInitializer;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
 
 public final class MundoCs5Mod implements ModInitializer {
@@ -11,7 +8,7 @@ public final class MundoCs5Mod implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        Registry.register(Registries.BIOME_SOURCE, id("pizza"), PizzaBiomeSource.CODEC);
+        ModWorldgen.register();
     }
 
     public static Identifier id(String path) {

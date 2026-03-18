@@ -1,83 +1,61 @@
-{
-  "dimensions": {
-    "minecraft:overworld": {
-      "type": "minecraft:overworld",
-      "generator": {
-        "type": "minecraft:noise",
-        "biome_source": {
-          "type": "mundocs5:pizza",
-          "vanilla": {
-            "type": "minecraft:multi_noise",
-            "preset": "minecraft:overworld"
-          },
-          "layout_seed": 886433821954,
-          "center_biome": "minecraft:mushroom_fields",
-          "center_radius": 300,
-          "east_biomes": [
-            "minecraft:windswept_hills",
-            "minecraft:stony_peaks"
-          ],
-          "southeast_biomes": [
-            "minecraft:jungle",
-            "minecraft:bamboo_jungle"
-          ],
-          "south_biomes": [
-            "minecraft:desert",
-            "minecraft:badlands"
-          ],
-          "southwest_biomes": [
-            "minecraft:plains",
-            "minecraft:meadow"
-          ],
-          "west_biomes": [
-            "minecraft:taiga",
-            "minecraft:old_growth_pine_taiga"
-          ],
-          "northwest_biomes": [
-            "minecraft:dark_forest",
-            "minecraft:forest",
-            "minecraft:flower_forest"
-          ],
-          "north_biomes": [
-            "minecraft:snowy_plains",
-            "minecraft:snowy_taiga",
-            "minecraft:ice_spikes",
-            "minecraft:frozen_peaks"
-          ],
-          "pizza_radius": 3000,
-          "ocean_start": 3000,
-          "outer_world_start": 4048,
-          "temperate_ocean_biome": "minecraft:ocean",
-          "cold_ocean_biome": "minecraft:frozen_ocean",
-          "deep_cold_ocean_biome": "minecraft:deep_frozen_ocean",
-          "warm_ocean_biome": "minecraft:warm_ocean",
-          "lukewarm_ocean_biome": "minecraft:lukewarm_ocean",
-          "beach_biome": "minecraft:beach",
-          "snowy_beach_biome": "minecraft:snowy_beach"
-        },
-        "settings": "minecraft:overworld"
-      }
-    },
-    "minecraft:the_nether": {
-      "type": "minecraft:the_nether",
-      "generator": {
-        "type": "minecraft:noise",
-        "biome_source": {
-          "type": "minecraft:multi_noise",
-          "preset": "minecraft:nether"
-        },
-        "settings": "minecraft:nether"
-      }
-    },
-    "minecraft:the_end": {
-      "type": "minecraft:the_end",
-      "generator": {
-        "type": "minecraft:noise",
-        "biome_source": {
-          "type": "minecraft:the_end"
-        },
-        "settings": "minecraft:end"
-      }
-    }
+"biome_source": {
+  "type": "mundocs5:pizza",
+
+  "vanilla": {
+    "type": "minecraft:multi_noise",
+    "preset": "minecraft:overworld"
+  },
+
+  "layout_seed": 886433821954,
+
+  "land_config": {
+    "center_biome": "minecraft:mushroom_fields",
+    "center_radius": 300,
+
+    "east_biomes": [
+      "minecraft:windswept_hills",
+      "minecraft:stony_peaks"
+    ],
+    "southeast_biomes": [
+      "minecraft:jungle",
+      "minecraft:bamboo_jungle"
+    ],
+    "south_biomes": [
+      "minecraft:desert",
+      "minecraft:badlands"
+    ],
+    "southwest_biomes": [
+      "minecraft:plains",
+      "minecraft:meadow"
+    ],
+    "west_biomes": [
+      "minecraft:taiga",
+      "minecraft:old_growth_pine_taiga"
+    ],
+    "northwest_biomes": [
+      "minecraft:dark_forest",
+      "minecraft:forest",
+      "minecraft:flower_forest"
+    ],
+    "north_biomes": [
+      "minecraft:snowy_plains",
+      "minecraft:snowy_taiga",
+      "minecraft:ice_spikes",
+      "minecraft:frozen_peaks"
+    ],
+
+    "pizza_radius": 3000,
+    "ocean_start": 3000,
+    "outer_world_start": 4048
+  },
+
+  "ocean_config": {
+    "temperate_ocean_biome": "minecraft:ocean",
+    "cold_ocean_biome": "minecraft:frozen_ocean",
+    "deep_cold_ocean_biome": "minecraft:deep_frozen_ocean",
+    "warm_ocean_biome": "minecraft:warm_ocean",
+    "lukewarm_ocean_biome": "minecraft:lukewarm_ocean",
+    "beach_biome": "minecraft:beach",
+    "snowy_beach_biome": "minecraft:snowy_beach"
   }
 }
