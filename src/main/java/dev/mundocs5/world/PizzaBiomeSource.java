@@ -138,7 +138,7 @@ public class PizzaBiomeSource extends BiomeSource {
             boolean stoneMountainA = Math.abs(distance - (landConfig.mainRingEnd() - 52.0)) < 34.0 && Math.abs(wrapSigned(sector.localAngle(angleFor(x, z)) - 0.32)) < 0.09;
             boolean stoneMountainB = Math.abs(distance - (landConfig.mainRingEnd() - 78.0)) < 28.0 && Math.abs(wrapSigned(sector.localAngle(angleFor(x, z)) - 0.72)) < 0.07;
             if (stoneMountainA || stoneMountainB) {
-                return landConfig.stonyPeaksBiome();
+                return landConfig.temperateBiomes().stonyPeaksBiome();
             }
         }
 
@@ -151,10 +151,10 @@ public class PizzaBiomeSource extends BiomeSource {
         if (sector.name().equals("forest_pale") && ringProgress > 0.28 && ringProgress < 0.72) {
             double palePatch = OrganicNoise.sample(layoutSeed ^ 0x51515151L, x, z, 120.0, 3);
             if (palePatch > 0.36) {
-                return landConfig.paleGardenBiome();
+                return landConfig.temperateBiomes().paleGardenBiome();
             }
             if (palePatch > 0.12) {
-                return landConfig.darkForestBiome();
+                return landConfig.temperateBiomes().darkForestBiome();
             }
         }
 
@@ -190,7 +190,7 @@ public class PizzaBiomeSource extends BiomeSource {
         double islandNoise = OrganicNoise.sample(layoutSeed ^ 0x42424242L, x, z, 84.0, 3)
                 + OrganicNoise.sample(layoutSeed ^ 0x10101010L, x, z, 34.0, 2) * 0.35;
         if (islandBand > 0.22 && islandNoise > 0.52) {
-            return southBias(angle) > 0.25 ? landConfig.savannaBiome() : landConfig.forestBiome();
+            return southBias(angle) > 0.25 ? landConfig.warmBiomes().savannaBiome() : landConfig.temperateBiomes().forestBiome();
         }
         return null;
     }
@@ -318,67 +318,67 @@ public class PizzaBiomeSource extends BiomeSource {
         List<Sector> built = new ArrayList<>();
         double cursor = 0.0;
         cursor = addSector(built, cursor, 0.11, "badlands", Climate.HOT, List.of(
-                landConfig.badlandsBiome(),
-                landConfig.woodedBadlandsBiome(),
-                landConfig.badlandsPlateauBiome(),
-                landConfig.erodedBadlandsBiome()
-        ), landConfig.erodedBadlandsBiome());
+                landConfig.warmBiomes().badlandsBiome(),
+                landConfig.warmBiomes().woodedBadlandsBiome(),
+                landConfig.warmBiomes().badlandsPlateauBiome(),
+                landConfig.warmBiomes().erodedBadlandsBiome()
+        ), landConfig.warmBiomes().erodedBadlandsBiome());
         cursor = addSector(built, cursor, 0.065, "savanna", Climate.WARM, List.of(
-                landConfig.savannaBiome(),
-                landConfig.savannaPlateauBiome(),
-                landConfig.windsweptSavannaBiome()
-        ), landConfig.windsweptSavannaBiome());
+                landConfig.warmBiomes().savannaBiome(),
+                landConfig.warmBiomes().savannaPlateauBiome(),
+                landConfig.warmBiomes().windsweptSavannaBiome()
+        ), landConfig.warmBiomes().windsweptSavannaBiome());
         cursor = addSector(built, cursor, 0.08, "desert", Climate.HOT, List.of(
-                landConfig.desertBiome(),
-                landConfig.desertBiome(),
-                landConfig.desertBiome()
+                landConfig.warmBiomes().desertBiome(),
+                landConfig.warmBiomes().desertBiome(),
+                landConfig.warmBiomes().desertBiome()
         ), null);
         cursor = addSector(built, cursor, 0.075, "mountain_transition", Climate.ALPINE, List.of(
-                landConfig.windsweptHillsBiome(),
-                landConfig.stonyPeaksBiome(),
-                landConfig.stonyPeaksBiome()
-        ), landConfig.stonyPeaksBiome());
+                landConfig.temperateBiomes().windsweptHillsBiome(),
+                landConfig.temperateBiomes().stonyPeaksBiome(),
+                landConfig.temperateBiomes().stonyPeaksBiome()
+        ), landConfig.temperateBiomes().stonyPeaksBiome());
         cursor = addSector(built, cursor, 0.07, "temperate_mountain_edge", Climate.TEMPERATE, List.of(
-                landConfig.cherryGroveBiome(),
-                landConfig.forestBiome(),
-                landConfig.flowerForestBiome()
-        ), landConfig.cherryGroveBiome());
+                landConfig.temperateBiomes().cherryGroveBiome(),
+                landConfig.temperateBiomes().forestBiome(),
+                landConfig.temperateBiomes().flowerForestBiome()
+        ), landConfig.temperateBiomes().cherryGroveBiome());
         cursor = addSector(built, cursor, 0.09, "plains", Climate.TEMPERATE, List.of(
-                landConfig.plainsBiome(),
-                landConfig.plainsBiome(),
-                landConfig.plainsBiome()
-        ), landConfig.stonyPeaksBiome());
+                landConfig.temperateBiomes().plainsBiome(),
+                landConfig.temperateBiomes().plainsBiome(),
+                landConfig.temperateBiomes().plainsBiome()
+        ), landConfig.temperateBiomes().stonyPeaksBiome());
         cursor = addSector(built, cursor, 0.08, "taiga", Climate.COOL, List.of(
-                landConfig.taigaBiome(),
-                landConfig.oldGrowthTaigaBiome()
-        ), landConfig.oldGrowthTaigaBiome());
+                landConfig.temperateBiomes().taigaBiome(),
+                landConfig.temperateBiomes().oldGrowthTaigaBiome()
+        ), landConfig.temperateBiomes().oldGrowthTaigaBiome());
         cursor = addSector(built, cursor, 0.055, "cold_taiga", Climate.COLD, List.of(
-                landConfig.snowyTaigaBiome(),
-                landConfig.snowyTaigaBiome()
-        ), landConfig.snowyTaigaBiome());
+                landConfig.coldBiomes().snowyTaigaBiome(),
+                landConfig.coldBiomes().snowyTaigaBiome()
+        ), landConfig.coldBiomes().snowyTaigaBiome());
         cursor = addSector(built, cursor, 0.09, "snow_mountains", Climate.ALPINE, List.of(
-                landConfig.snowyPlainsBiome(),
-                landConfig.frozenPeaksBiome(),
-                landConfig.jaggedPeaksBiome()
-        ), landConfig.frozenPeaksBiome());
+                landConfig.coldBiomes().snowyPlainsBiome(),
+                landConfig.coldBiomes().frozenPeaksBiome(),
+                landConfig.coldBiomes().jaggedPeaksBiome()
+        ), landConfig.coldBiomes().frozenPeaksBiome());
         cursor = addSector(built, cursor, 0.08, "forest_pale", Climate.TEMPERATE, List.of(
-                landConfig.forestBiome(),
-                landConfig.forestBiome(),
-                landConfig.flowerForestBiome()
-        ), landConfig.paleGardenBiome());
+                landConfig.temperateBiomes().forestBiome(),
+                landConfig.temperateBiomes().forestBiome(),
+                landConfig.temperateBiomes().flowerForestBiome()
+        ), landConfig.temperateBiomes().paleGardenBiome());
         cursor = addSector(built, cursor, 0.075, "swamp", Climate.WARM, List.of(
-                landConfig.swampBiome(),
-                landConfig.mangroveSwampBiome()
-        ), landConfig.mangroveSwampBiome());
+                landConfig.wetBiomes().swampBiome(),
+                landConfig.wetBiomes().mangroveSwampBiome()
+        ), landConfig.wetBiomes().mangroveSwampBiome());
         cursor = addSector(built, cursor, 0.05, "dark_forest_band", Climate.TEMPERATE, List.of(
-                landConfig.darkForestBiome(),
-                landConfig.darkForestBiome()
-        ), landConfig.paleGardenBiome());
+                landConfig.temperateBiomes().darkForestBiome(),
+                landConfig.temperateBiomes().darkForestBiome()
+        ), landConfig.temperateBiomes().paleGardenBiome());
         addSector(built, cursor, 1.0 - cursor, "jungle", Climate.WARM, List.of(
-                landConfig.jungleBiome(),
-                landConfig.sparseJungleBiome(),
-                landConfig.bambooJungleBiome()
-        ), landConfig.bambooJungleBiome());
+                landConfig.warmBiomes().jungleBiome(),
+                landConfig.warmBiomes().sparseJungleBiome(),
+                landConfig.warmBiomes().bambooJungleBiome()
+        ), landConfig.warmBiomes().bambooJungleBiome());
         return List.copyOf(built);
     }
 
@@ -396,11 +396,11 @@ public class PizzaBiomeSource extends BiomeSource {
                 collected.add(sector.accentBiome());
             }
         }
-        collected.add(landConfig.paleGardenBiome());
-        collected.add(landConfig.darkForestBiome());
-        collected.add(landConfig.stonyPeaksBiome());
-        collected.add(landConfig.forestBiome());
-        collected.add(landConfig.savannaBiome());
+        collected.add(landConfig.temperateBiomes().paleGardenBiome());
+        collected.add(landConfig.temperateBiomes().darkForestBiome());
+        collected.add(landConfig.temperateBiomes().stonyPeaksBiome());
+        collected.add(landConfig.temperateBiomes().forestBiome());
+        collected.add(landConfig.warmBiomes().savannaBiome());
         collected.add(oceanConfig.temperateOceanBiome());
         collected.add(oceanConfig.coldOceanBiome());
         collected.add(oceanConfig.frozenOceanBiome());
@@ -439,6 +439,25 @@ public class PizzaBiomeSource extends BiomeSource {
             int innerOceanEnd,
             int mainRingEnd,
             int fallbackStart,
+            WarmBiomes warmBiomes,
+            TemperateBiomes temperateBiomes,
+            ColdBiomes coldBiomes,
+            WetBiomes wetBiomes
+    ) {
+        public static final MapCodec<LandConfig> MAP_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+                BIOME_CODEC.fieldOf("center_biome").forGetter(LandConfig::centerBiome),
+                Codec.intRange(1, 256).optionalFieldOf("center_radius", 54).forGetter(LandConfig::centerRadius),
+                Codec.intRange(1, 2048).optionalFieldOf("inner_ocean_end", 234).forGetter(LandConfig::innerOceanEnd),
+                Codec.intRange(1, 4096).optionalFieldOf("main_ring_end", 864).forGetter(LandConfig::mainRingEnd),
+                Codec.intRange(256, 8192).optionalFieldOf("fallback_start", 2048).forGetter(LandConfig::fallbackStart),
+                WarmBiomes.MAP_CODEC.forGetter(LandConfig::warmBiomes),
+                TemperateBiomes.MAP_CODEC.forGetter(LandConfig::temperateBiomes),
+                ColdBiomes.MAP_CODEC.forGetter(LandConfig::coldBiomes),
+                WetBiomes.MAP_CODEC.forGetter(LandConfig::wetBiomes)
+        ).apply(instance, LandConfig::new));
+    }
+
+    public record WarmBiomes(
             RegistryEntry<Biome> badlandsBiome,
             RegistryEntry<Biome> woodedBadlandsBiome,
             RegistryEntry<Biome> badlandsPlateauBiome,
@@ -447,6 +466,26 @@ public class PizzaBiomeSource extends BiomeSource {
             RegistryEntry<Biome> savannaPlateauBiome,
             RegistryEntry<Biome> windsweptSavannaBiome,
             RegistryEntry<Biome> desertBiome,
+            RegistryEntry<Biome> jungleBiome,
+            RegistryEntry<Biome> sparseJungleBiome,
+            RegistryEntry<Biome> bambooJungleBiome
+    ) {
+        public static final MapCodec<WarmBiomes> MAP_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+                BIOME_CODEC.fieldOf("badlands_biome").forGetter(WarmBiomes::badlandsBiome),
+                BIOME_CODEC.fieldOf("wooded_badlands_biome").forGetter(WarmBiomes::woodedBadlandsBiome),
+                BIOME_CODEC.fieldOf("badlands_plateau_biome").forGetter(WarmBiomes::badlandsPlateauBiome),
+                BIOME_CODEC.fieldOf("eroded_badlands_biome").forGetter(WarmBiomes::erodedBadlandsBiome),
+                BIOME_CODEC.fieldOf("savanna_biome").forGetter(WarmBiomes::savannaBiome),
+                BIOME_CODEC.fieldOf("savanna_plateau_biome").forGetter(WarmBiomes::savannaPlateauBiome),
+                BIOME_CODEC.fieldOf("windswept_savanna_biome").forGetter(WarmBiomes::windsweptSavannaBiome),
+                BIOME_CODEC.fieldOf("desert_biome").forGetter(WarmBiomes::desertBiome),
+                BIOME_CODEC.fieldOf("jungle_biome").forGetter(WarmBiomes::jungleBiome),
+                BIOME_CODEC.fieldOf("sparse_jungle_biome").forGetter(WarmBiomes::sparseJungleBiome),
+                BIOME_CODEC.fieldOf("bamboo_jungle_biome").forGetter(WarmBiomes::bambooJungleBiome)
+        ).apply(instance, WarmBiomes::new));
+    }
+
+    public record TemperateBiomes(
             RegistryEntry<Biome> windsweptHillsBiome,
             RegistryEntry<Biome> stonyPeaksBiome,
             RegistryEntry<Biome> cherryGroveBiome,
@@ -455,52 +494,45 @@ public class PizzaBiomeSource extends BiomeSource {
             RegistryEntry<Biome> plainsBiome,
             RegistryEntry<Biome> taigaBiome,
             RegistryEntry<Biome> oldGrowthTaigaBiome,
+            RegistryEntry<Biome> paleGardenBiome,
+            RegistryEntry<Biome> darkForestBiome
+    ) {
+        public static final MapCodec<TemperateBiomes> MAP_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+                BIOME_CODEC.fieldOf("windswept_hills_biome").forGetter(TemperateBiomes::windsweptHillsBiome),
+                BIOME_CODEC.fieldOf("stony_peaks_biome").forGetter(TemperateBiomes::stonyPeaksBiome),
+                BIOME_CODEC.fieldOf("cherry_grove_biome").forGetter(TemperateBiomes::cherryGroveBiome),
+                BIOME_CODEC.fieldOf("forest_biome").forGetter(TemperateBiomes::forestBiome),
+                BIOME_CODEC.fieldOf("flower_forest_biome").forGetter(TemperateBiomes::flowerForestBiome),
+                BIOME_CODEC.fieldOf("plains_biome").forGetter(TemperateBiomes::plainsBiome),
+                BIOME_CODEC.fieldOf("taiga_biome").forGetter(TemperateBiomes::taigaBiome),
+                BIOME_CODEC.fieldOf("old_growth_taiga_biome").forGetter(TemperateBiomes::oldGrowthTaigaBiome),
+                BIOME_CODEC.fieldOf("pale_garden_biome").forGetter(TemperateBiomes::paleGardenBiome),
+                BIOME_CODEC.fieldOf("dark_forest_biome").forGetter(TemperateBiomes::darkForestBiome)
+        ).apply(instance, TemperateBiomes::new));
+    }
+
+    public record ColdBiomes(
             RegistryEntry<Biome> snowyTaigaBiome,
             RegistryEntry<Biome> snowyPlainsBiome,
             RegistryEntry<Biome> frozenPeaksBiome,
-            RegistryEntry<Biome> jaggedPeaksBiome,
-            RegistryEntry<Biome> paleGardenBiome,
-            RegistryEntry<Biome> darkForestBiome,
-            RegistryEntry<Biome> swampBiome,
-            RegistryEntry<Biome> mangroveSwampBiome,
-            RegistryEntry<Biome> jungleBiome,
-            RegistryEntry<Biome> sparseJungleBiome,
-            RegistryEntry<Biome> bambooJungleBiome
+            RegistryEntry<Biome> jaggedPeaksBiome
     ) {
-        public static final MapCodec<LandConfig> MAP_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-                BIOME_CODEC.fieldOf("center_biome").forGetter(LandConfig::centerBiome),
-                Codec.intRange(1, 256).optionalFieldOf("center_radius", 54).forGetter(LandConfig::centerRadius),
-                Codec.intRange(1, 2048).optionalFieldOf("inner_ocean_end", 234).forGetter(LandConfig::innerOceanEnd),
-                Codec.intRange(1, 4096).optionalFieldOf("main_ring_end", 864).forGetter(LandConfig::mainRingEnd),
-                Codec.intRange(256, 8192).optionalFieldOf("fallback_start", 2048).forGetter(LandConfig::fallbackStart),
-                BIOME_CODEC.fieldOf("badlands_biome").forGetter(LandConfig::badlandsBiome),
-                BIOME_CODEC.fieldOf("wooded_badlands_biome").forGetter(LandConfig::woodedBadlandsBiome),
-                BIOME_CODEC.fieldOf("badlands_plateau_biome").forGetter(LandConfig::badlandsPlateauBiome),
-                BIOME_CODEC.fieldOf("eroded_badlands_biome").forGetter(LandConfig::erodedBadlandsBiome),
-                BIOME_CODEC.fieldOf("savanna_biome").forGetter(LandConfig::savannaBiome),
-                BIOME_CODEC.fieldOf("savanna_plateau_biome").forGetter(LandConfig::savannaPlateauBiome),
-                BIOME_CODEC.fieldOf("windswept_savanna_biome").forGetter(LandConfig::windsweptSavannaBiome),
-                BIOME_CODEC.fieldOf("desert_biome").forGetter(LandConfig::desertBiome),
-                BIOME_CODEC.fieldOf("windswept_hills_biome").forGetter(LandConfig::windsweptHillsBiome),
-                BIOME_CODEC.fieldOf("stony_peaks_biome").forGetter(LandConfig::stonyPeaksBiome),
-                BIOME_CODEC.fieldOf("cherry_grove_biome").forGetter(LandConfig::cherryGroveBiome),
-                BIOME_CODEC.fieldOf("forest_biome").forGetter(LandConfig::forestBiome),
-                BIOME_CODEC.fieldOf("flower_forest_biome").forGetter(LandConfig::flowerForestBiome),
-                BIOME_CODEC.fieldOf("plains_biome").forGetter(LandConfig::plainsBiome),
-                BIOME_CODEC.fieldOf("taiga_biome").forGetter(LandConfig::taigaBiome),
-                BIOME_CODEC.fieldOf("old_growth_taiga_biome").forGetter(LandConfig::oldGrowthTaigaBiome),
-                BIOME_CODEC.fieldOf("snowy_taiga_biome").forGetter(LandConfig::snowyTaigaBiome),
-                BIOME_CODEC.fieldOf("snowy_plains_biome").forGetter(LandConfig::snowyPlainsBiome),
-                BIOME_CODEC.fieldOf("frozen_peaks_biome").forGetter(LandConfig::frozenPeaksBiome),
-                BIOME_CODEC.fieldOf("jagged_peaks_biome").forGetter(LandConfig::jaggedPeaksBiome),
-                BIOME_CODEC.fieldOf("pale_garden_biome").forGetter(LandConfig::paleGardenBiome),
-                BIOME_CODEC.fieldOf("dark_forest_biome").forGetter(LandConfig::darkForestBiome),
-                BIOME_CODEC.fieldOf("swamp_biome").forGetter(LandConfig::swampBiome),
-                BIOME_CODEC.fieldOf("mangrove_swamp_biome").forGetter(LandConfig::mangroveSwampBiome),
-                BIOME_CODEC.fieldOf("jungle_biome").forGetter(LandConfig::jungleBiome),
-                BIOME_CODEC.fieldOf("sparse_jungle_biome").forGetter(LandConfig::sparseJungleBiome),
-                BIOME_CODEC.fieldOf("bamboo_jungle_biome").forGetter(LandConfig::bambooJungleBiome)
-        ).apply(instance, LandConfig::new));
+        public static final MapCodec<ColdBiomes> MAP_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+                BIOME_CODEC.fieldOf("snowy_taiga_biome").forGetter(ColdBiomes::snowyTaigaBiome),
+                BIOME_CODEC.fieldOf("snowy_plains_biome").forGetter(ColdBiomes::snowyPlainsBiome),
+                BIOME_CODEC.fieldOf("frozen_peaks_biome").forGetter(ColdBiomes::frozenPeaksBiome),
+                BIOME_CODEC.fieldOf("jagged_peaks_biome").forGetter(ColdBiomes::jaggedPeaksBiome)
+        ).apply(instance, ColdBiomes::new));
+    }
+
+    public record WetBiomes(
+            RegistryEntry<Biome> swampBiome,
+            RegistryEntry<Biome> mangroveSwampBiome
+    ) {
+        public static final MapCodec<WetBiomes> MAP_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+                BIOME_CODEC.fieldOf("swamp_biome").forGetter(WetBiomes::swampBiome),
+                BIOME_CODEC.fieldOf("mangrove_swamp_biome").forGetter(WetBiomes::mangroveSwampBiome)
+        ).apply(instance, WetBiomes::new));
     }
 
     public record OceanConfig(
