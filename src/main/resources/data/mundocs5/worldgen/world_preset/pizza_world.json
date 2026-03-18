@@ -1,13 +1,61 @@
 {
   "dimensions": {
     "minecraft:overworld": {
-      "type": "mundocs5:pizza_overworld"
+      "type": "minecraft:overworld",
+      "generator": {
+        "type": "minecraft:noise",
+        "biome_source": {
+          "type": "mundocs5:pizza_ring",
+          "vanilla": {
+            "type": "minecraft:multi_noise",
+            "preset": "minecraft:overworld"
+          },
+          "island_biome": "minecraft:mushroom_fields",
+          "island_radius": 96,
+          "center_biome": "minecraft:warm_ocean",
+          "center_radius": 520,
+          "pizza_biomes": [
+            "minecraft:snowy_plains",
+            "minecraft:plains",
+            "minecraft:cherry_grove",
+            "minecraft:desert",
+            "minecraft:badlands",
+            "minecraft:forest",
+            "minecraft:jungle",
+            "minecraft:taiga"
+          ],
+          "pizza_radius": 2400,
+          "ocean_biomes": [
+            "minecraft:warm_ocean",
+            "minecraft:ocean",
+            "minecraft:cold_ocean",
+            "minecraft:deep_ocean"
+          ],
+          "ocean_radius": 3000
+        },
+        "settings": "minecraft:overworld"
+      }
     },
     "minecraft:the_nether": {
-      "type": "minecraft:the_nether"
+      "type": "minecraft:the_nether",
+      "generator": {
+        "type": "minecraft:noise",
+        "biome_source": {
+          "type": "minecraft:multi_noise",
+          "preset": "minecraft:nether"
+        },
+        "settings": "minecraft:nether"
+      }
     },
     "minecraft:the_end": {
-      "type": "minecraft:the_end"
+      "type": "minecraft:the_end",
+      "generator": {
+        "type": "minecraft:noise",
+        "biome_source": {
+          "type": "minecraft:the_end"
+        },
+        "settings": "minecraft:end"
+      }
     }
   }
 }
