@@ -1,6 +1,6 @@
 # MundoCs5
 
-Deterministic Fabric worldgen mod for **Minecraft 1.21.11** that creates a circular “pizza/donut” overworld around `(0, 0)`.
+Deterministic Fabric worldgen mod for **Minecraft 1.21.9** that creates a circular “pizza/donut” overworld around `(0, 0)`.
 
 ## Layout
 
@@ -45,7 +45,7 @@ Clockwise from the south:
 ## Usage
 
 1. Build the mod with Gradle.
-2. Install it in Fabric for Minecraft 1.21.11 / Java 21.
+2. Install it in Fabric for Minecraft 1.21.9 / Java 21.
 3. Create a world with the `mundocs5:pizza_world` preset.
 4. Spawn near `(0, 0)` to experience the donut layout immediately.
 
