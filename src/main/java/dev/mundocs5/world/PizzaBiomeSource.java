@@ -25,8 +25,8 @@ public class PizzaBiomeSource extends BiomeSource {
     public static final MapCodec<PizzaBiomeSource> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             MultiNoiseBiomeSource.CODEC.fieldOf("vanilla").forGetter(PizzaBiomeSource::vanillaBiomeSource),
             Codec.LONG.optionalFieldOf("layout_seed", DEFAULT_LAYOUT_SEED).forGetter(PizzaBiomeSource::layoutSeed),
-            LandConfig.MAP_CODEC.forGetter(PizzaBiomeSource::landConfig),
-            OceanConfig.MAP_CODEC.forGetter(PizzaBiomeSource::oceanConfig)
+            LandConfig.CODEC.fieldOf("land_config").forGetter(PizzaBiomeSource::landConfig),
+            OceanConfig.CODEC.fieldOf("ocean_config").forGetter(PizzaBiomeSource::oceanConfig)
     ).apply(instance, PizzaBiomeSource::new));
 
     private final MultiNoiseBiomeSource vanillaBiomeSource;
@@ -455,6 +455,7 @@ public class PizzaBiomeSource extends BiomeSource {
                 ColdBiomes.MAP_CODEC.forGetter(LandConfig::coldBiomes),
                 WetBiomes.MAP_CODEC.forGetter(LandConfig::wetBiomes)
         ).apply(instance, LandConfig::new));
+        public static final Codec<LandConfig> CODEC = MAP_CODEC.codec();
     }
 
     public record WarmBiomes(
@@ -483,6 +484,7 @@ public class PizzaBiomeSource extends BiomeSource {
                 BIOME_CODEC.fieldOf("sparse_jungle_biome").forGetter(WarmBiomes::sparseJungleBiome),
                 BIOME_CODEC.fieldOf("bamboo_jungle_biome").forGetter(WarmBiomes::bambooJungleBiome)
         ).apply(instance, WarmBiomes::new));
+        public static final Codec<WarmBiomes> CODEC = MAP_CODEC.codec();
     }
 
     public record TemperateBiomes(
@@ -509,6 +511,7 @@ public class PizzaBiomeSource extends BiomeSource {
                 BIOME_CODEC.fieldOf("pale_garden_biome").forGetter(TemperateBiomes::paleGardenBiome),
                 BIOME_CODEC.fieldOf("dark_forest_biome").forGetter(TemperateBiomes::darkForestBiome)
         ).apply(instance, TemperateBiomes::new));
+        public static final Codec<TemperateBiomes> CODEC = MAP_CODEC.codec();
     }
 
     public record ColdBiomes(
@@ -523,6 +526,7 @@ public class PizzaBiomeSource extends BiomeSource {
                 BIOME_CODEC.fieldOf("frozen_peaks_biome").forGetter(ColdBiomes::frozenPeaksBiome),
                 BIOME_CODEC.fieldOf("jagged_peaks_biome").forGetter(ColdBiomes::jaggedPeaksBiome)
         ).apply(instance, ColdBiomes::new));
+        public static final Codec<ColdBiomes> CODEC = MAP_CODEC.codec();
     }
 
     public record WetBiomes(
@@ -533,6 +537,7 @@ public class PizzaBiomeSource extends BiomeSource {
                 BIOME_CODEC.fieldOf("swamp_biome").forGetter(WetBiomes::swampBiome),
                 BIOME_CODEC.fieldOf("mangrove_swamp_biome").forGetter(WetBiomes::mangroveSwampBiome)
         ).apply(instance, WetBiomes::new));
+        public static final Codec<WetBiomes> CODEC = MAP_CODEC.codec();
     }
 
     public record OceanConfig(
@@ -557,6 +562,7 @@ public class PizzaBiomeSource extends BiomeSource {
                 BIOME_CODEC.fieldOf("river_biome").forGetter(OceanConfig::riverBiome),
                 BIOME_CODEC.fieldOf("frozen_river_biome").forGetter(OceanConfig::frozenRiverBiome)
         ).apply(instance, OceanConfig::new));
+        public static final Codec<OceanConfig> CODEC = MAP_CODEC.codec();
     }
 
     private enum Climate {
