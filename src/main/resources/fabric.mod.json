@@ -3,7 +3,7 @@
   "id": "mundocs5",
   "version": "${version}",
   "name": "MundoCs5",
-  "description": "Worldgen radial com centro de cogumelo + anel pizza + fallback vanilla.",
+  "description": "Deterministic donut-world worldgen with a mushroom core, inner ocean, biome ring, rivers, and vanilla fallback.",
   "authors": ["MundoCs5"],
   "environment": "*",
   "entrypoints": {
@@ -13,7 +13,7 @@
   },
   "depends": {
     "fabricloader": ">=0.16.14",
-    "minecraft": "~1.21.9",
+    "minecraft": "~1.21.11",
     "java": ">=21"
   }
 }
