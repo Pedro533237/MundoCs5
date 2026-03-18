@@ -450,10 +450,10 @@ public class PizzaBiomeSource extends BiomeSource {
                 Codec.intRange(1, 2048).optionalFieldOf("inner_ocean_end", 234).forGetter(LandConfig::innerOceanEnd),
                 Codec.intRange(1, 4096).optionalFieldOf("main_ring_end", 864).forGetter(LandConfig::mainRingEnd),
                 Codec.intRange(256, 8192).optionalFieldOf("fallback_start", 2048).forGetter(LandConfig::fallbackStart),
-                WarmBiomes.MAP_CODEC.forGetter(LandConfig::warmBiomes),
-                TemperateBiomes.MAP_CODEC.forGetter(LandConfig::temperateBiomes),
-                ColdBiomes.MAP_CODEC.forGetter(LandConfig::coldBiomes),
-                WetBiomes.MAP_CODEC.forGetter(LandConfig::wetBiomes)
+                WarmBiomes.CODEC.fieldOf("warm_biomes").forGetter(LandConfig::warmBiomes),
+                TemperateBiomes.CODEC.fieldOf("temperate_biomes").forGetter(LandConfig::temperateBiomes),
+                ColdBiomes.CODEC.fieldOf("cold_biomes").forGetter(LandConfig::coldBiomes),
+                WetBiomes.CODEC.fieldOf("wet_biomes").forGetter(LandConfig::wetBiomes)
         ).apply(instance, LandConfig::new));
         public static final Codec<LandConfig> CODEC = MAP_CODEC.codec();
     }
