@@ -3,33 +3,55 @@
   "generator": {
     "type": "minecraft:noise",
     "biome_source": {
-      "type": "mundocs5:pizza_ring",
+      "type": "mundocs5:pizza",
       "vanilla": {
         "type": "minecraft:multi_noise",
         "preset": "minecraft:overworld"
       },
-      "island_biome": "minecraft:mushroom_fields",
-      "island_radius": 96,
-      "center_biome": "minecraft:warm_ocean",
-      "center_radius": 520,
-      "pizza_biomes": [
-        "minecraft:snowy_plains",
-        "minecraft:plains",
-        "minecraft:cherry_grove",
-        "minecraft:desert",
-        "minecraft:badlands",
-        "minecraft:forest",
+      "layout_seed": 886433821954,
+      "center_biome": "minecraft:mushroom_fields",
+      "center_radius": 300,
+      "east_biomes": [
+        "minecraft:windswept_hills",
+        "minecraft:stony_peaks"
+      ],
+      "southeast_biomes": [
         "minecraft:jungle",
-        "minecraft:taiga"
+        "minecraft:bamboo_jungle"
       ],
-      "pizza_radius": 2400,
-      "ocean_biomes": [
-        "minecraft:warm_ocean",
-        "minecraft:ocean",
-        "minecraft:cold_ocean",
-        "minecraft:deep_ocean"
+      "south_biomes": [
+        "minecraft:desert",
+        "minecraft:badlands"
       ],
-      "ocean_radius": 3000
+      "southwest_biomes": [
+        "minecraft:plains",
+        "minecraft:meadow"
+      ],
+      "west_biomes": [
+        "minecraft:taiga",
+        "minecraft:old_growth_pine_taiga"
+      ],
+      "northwest_biomes": [
+        "minecraft:dark_forest",
+        "minecraft:forest",
+        "minecraft:flower_forest"
+      ],
+      "north_biomes": [
+        "minecraft:snowy_plains",
+        "minecraft:snowy_taiga",
+        "minecraft:ice_spikes",
+        "minecraft:frozen_peaks"
+      ],
+      "pizza_radius": 3000,
+      "ocean_start": 3000,
+      "outer_world_start": 4048,
+      "temperate_ocean_biome": "minecraft:ocean",
+      "cold_ocean_biome": "minecraft:frozen_ocean",
+      "deep_cold_ocean_biome": "minecraft:deep_frozen_ocean",
+      "warm_ocean_biome": "minecraft:warm_ocean",
+      "lukewarm_ocean_biome": "minecraft:lukewarm_ocean",
+      "beach_biome": "minecraft:beach",
+      "snowy_beach_biome": "minecraft:snowy_beach"
     },
     "settings": "minecraft:overworld"
   }
