@@ -21,7 +21,7 @@ public final class ModWorldgen {
         Registry.register(
     Registries.BIOME_SOURCE,
     MundoCs5Mod.id("pizza"),
-    PizzaBiomeSource.CODEC.codec()
+    PizzaBiomeSource.CODEC
     );
         registered = true;
         LOGGER.info("Registered biome source {}", MundoCs5Mod.id("pizza"));
