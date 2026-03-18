@@ -25,8 +25,8 @@ public class PizzaBiomeSource extends BiomeSource {
     public static final MapCodec<PizzaBiomeSource> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             MultiNoiseBiomeSource.CODEC.fieldOf("vanilla").forGetter(PizzaBiomeSource::vanillaBiomeSource),
             Codec.LONG.optionalFieldOf("layout_seed", DEFAULT_LAYOUT_SEED).forGetter(PizzaBiomeSource::layoutSeed),
-            LandConfig.CODEC.forGetter(PizzaBiomeSource::landConfig),
-            OceanConfig.CODEC.forGetter(PizzaBiomeSource::oceanConfig)
+            LandConfig.MAP_CODEC.forGetter(PizzaBiomeSource::landConfig),
+            OceanConfig.MAP_CODEC.forGetter(PizzaBiomeSource::oceanConfig)
     ).apply(instance, PizzaBiomeSource::new));
 
     private final MultiNoiseBiomeSource vanillaBiomeSource;
@@ -265,7 +265,7 @@ public class PizzaBiomeSource extends BiomeSource {
             int oceanStart,
             int outerWorldStart
     ) {
-        public static final Codec<LandConfig> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+        public static final MapCodec<LandConfig> MAP_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
                 BIOME_CODEC.fieldOf("center_biome").forGetter(LandConfig::centerBiome),
                 Codec.intRange(0, Integer.MAX_VALUE).optionalFieldOf("center_radius", 300).forGetter(LandConfig::centerRadius),
                 BIOME_CODEC.listOf().fieldOf("east_biomes").forGetter(LandConfig::eastBiomes),
@@ -300,7 +300,7 @@ public class PizzaBiomeSource extends BiomeSource {
             RegistryEntry<Biome> beachBiome,
             RegistryEntry<Biome> snowyBeachBiome
     ) {
-        public static final Codec<OceanConfig> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+        public static final MapCodec<OceanConfig> MAP_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
                 BIOME_CODEC.fieldOf("temperate_ocean_biome").forGetter(OceanConfig::temperateOceanBiome),
                 BIOME_CODEC.fieldOf("cold_ocean_biome").forGetter(OceanConfig::coldOceanBiome),
                 BIOME_CODEC.fieldOf("deep_cold_ocean_biome").forGetter(OceanConfig::deepColdOceanBiome),
