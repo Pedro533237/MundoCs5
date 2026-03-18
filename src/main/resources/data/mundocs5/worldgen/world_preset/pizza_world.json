@@ -3,7 +3,7 @@
     "minecraft:overworld": {
       "type": "minecraft:overworld",
       "generator": {
-        "type": "minecraft:noise",
+        "type": "mundocs5:pizza_generator",
         "biome_source": {
           "type": "mundocs5:pizza",
           "vanilla": {
