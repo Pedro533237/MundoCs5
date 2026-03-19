@@ -118,13 +118,7 @@ public class PizzaBiomeSource extends BiomeSource {
             return beachFor(sector.climate());
         }
 
-        double boundaryBlend = edgeBlend(angle, sector);
-        if (boundaryBlend > 0.60) {
-            Sector neighbor = chooseNeighbor(angle, sector);
-            return pickBiomeFromSector(neighbor, ringProgress, distance, x, z, true);
-        }
-
-        return pickBiomeFromSector(sector, ringProgress, distance, x, z, false);
+        return pickBiomeFromSector(sector, ringProgress, distance, x, z, edgeBlend(angle, sector) > 0.70);
     }
 
     private RegistryEntry<Biome> pickBiomeFromSector(Sector sector, double ringProgress, double distance, double x, double z, boolean favorTransition) {
@@ -263,15 +257,6 @@ public class PizzaBiomeSource extends BiomeSource {
             }
         }
         return sectors.get(sectors.size() - 1);
-    }
-
-    private Sector chooseNeighbor(double angle, Sector sector) {
-        int index = sectors.indexOf(sector);
-        Sector left = sectors.get(Math.floorMod(index - 1, sectors.size()));
-        Sector right = sectors.get(Math.floorMod(index + 1, sectors.size()));
-        double leftDistance = Math.abs(wrapSigned(angle - sector.start()));
-        double rightDistance = Math.abs(wrapSigned(angle - sector.end()));
-        return leftDistance < rightDistance ? left : right;
     }
 
     private double edgeBlend(double angle, Sector sector) {
