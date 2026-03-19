@@ -120,6 +120,9 @@ public class PizzaChunkGenerator extends ChunkGenerator {
         int startX = chunk.getPos().getStartX();
         int startZ = chunk.getPos().getStartZ();
 
+        int[][] targetHeights = new int[16][16];
+        RegistryEntry<Biome>[][] biomes = new RegistryEntry[16][16];
+
         for (int localX = 0; localX < 16; localX++) {
             for (int localZ = 0; localZ < 16; localZ++) {
                 int worldX = startX + localX;
@@ -127,12 +130,24 @@ public class PizzaChunkGenerator extends ChunkGenerator {
                 double distance = Math.sqrt((double) worldX * worldX + (double) worldZ * worldZ);
 
                 if (distance > 2048.0) {
+                    targetHeights[localX][localZ] = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE_WG, localX, localZ);
+                    biomes[localX][localZ] = chunk.getBiomeForNoiseGen(localX >> 2, seaLevel >> 2, localZ >> 2);
                     continue;
                 }
 
                 int existingTop = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE_WG, localX, localZ);
                 RegistryEntry<Biome> biome = chunk.getBiomeForNoiseGen(localX >> 2, Math.max(minY, existingTop) >> 2, localZ >> 2);
-                int targetHeight = sampleTerrainHeight(worldX, worldZ, seaLevel, existingTop, biome);
+                biomes[localX][localZ] = biome;
+                targetHeights[localX][localZ] = sampleSmoothedTerrainHeight(worldX, worldZ, seaLevel, existingTop, biome);
+            }
+        }
+
+        for (int localX = 0; localX < 16; localX++) {
+            for (int localZ = 0; localZ < 16; localZ++) {
+                int worldX = startX + localX;
+                int worldZ = startZ + localZ;
+                int targetHeight = targetHeights[localX][localZ];
+                RegistryEntry<Biome> biome = biomes[localX][localZ];
                 BlockState topBlock = surfaceBlockFor(biome, targetHeight, seaLevel);
                 BlockState fillerBlock = fillerBlockFor(biome);
 
@@ -159,6 +174,20 @@ public class PizzaChunkGenerator extends ChunkGenerator {
         }
     }
 
+    private int sampleSmoothedTerrainHeight(int x, int z, int seaLevel, int existingTop, RegistryEntry<Biome> biome) {
+        int center = sampleTerrainHeight(x, z, seaLevel, existingTop, biome);
+        int north = sampleTerrainHeight(x, z - 1, seaLevel, existingTop, biome);
+        int south = sampleTerrainHeight(x, z + 1, seaLevel, existingTop, biome);
+        int west = sampleTerrainHeight(x - 1, z, seaLevel, existingTop, biome);
+        int east = sampleTerrainHeight(x + 1, z, seaLevel, existingTop, biome);
+        int northWest = sampleTerrainHeight(x - 1, z - 1, seaLevel, existingTop, biome);
+        int northEast = sampleTerrainHeight(x + 1, z - 1, seaLevel, existingTop, biome);
+        int southWest = sampleTerrainHeight(x - 1, z + 1, seaLevel, existingTop, biome);
+        int southEast = sampleTerrainHeight(x + 1, z + 1, seaLevel, existingTop, biome);
+
+        return (int) Math.round((center * 4.0 + north + south + west + east + (northWest + northEast + southWest + southEast) * 0.5) / 10.0);
+    }
+
     private int sampleTerrainHeight(int x, int z, int seaLevel, int existingTop, RegistryEntry<Biome> biome) {
         double distance = Math.sqrt((double) x * x + (double) z * z);
         double warpedDistance = distance
@@ -170,6 +199,8 @@ public class PizzaChunkGenerator extends ChunkGenerator {
         double detailNoise = OrganicNoise.sample(0x1B1A1D5L, x, z, 48.0, 3);
         double erosionNoise = OrganicNoise.sample(0xABCD1234L, x, z, 95.0, 2);
         double coastlineNoise = Math.abs(OrganicNoise.sample(0x77889911L, x, z, 70.0, 2));
+        double macroReliefNoise = Math.abs(OrganicNoise.sample(0x60066006L, x, z, 280.0, 3));
+        double badlandsSpireNoise = Math.abs(OrganicNoise.sample(0xBADA551AL, x, z, 82.0, 3));
 
         int profileHeight;
         if (warpedDistance < 60.0) {
@@ -183,24 +214,28 @@ public class PizzaChunkGenerator extends ChunkGenerator {
                 profileHeight = seaLevel - 1 + (int) Math.round((detailNoise - 0.72) * 18.0);
             }
         } else if (warpedDistance < 875.0) {
-            double coastIn = smoothRise(warpedDistance, 230.0, 320.0);
-            double coastOut = 1.0 - smoothRise(warpedDistance, 760.0, 875.0);
+            double coastIn = smoothRise(warpedDistance, 230.0, 360.0);
+            double coastOut = 1.0 - smoothRise(warpedDistance, 720.0, 875.0);
             double landMass = Math.min(coastIn, coastOut);
             double inlandProgress = MathHelper.clamp((warpedDistance - 260.0) / 520.0, 0.0, 1.0);
             double mountainMask = mountainMaskForBiome(biome, angle, x, z);
             double hillMask = hillMaskForBiome(biome, x, z);
+            double badlandsMask = badlandsMaskForBiome(biome, x, z);
 
-            double baseLowland = seaLevel + 2.0 + coastlineNoise * 2.0;
-            double rollingInterior = seaLevel + 10.0 + continentNoise * 7.0 + detailNoise * 3.0;
-            double alpineCore = seaLevel + 26.0 + ridgeNoise * 34.0 + continentNoise * 10.0;
-            double profile = MathHelper.lerp(landMass, baseLowland, rollingInterior);
-            profile = MathHelper.lerp(Math.max(mountainMask, hillMask * 0.55), profile, alpineCore);
-            profile -= Math.max(0.0, erosionNoise - 0.25) * 7.0;
-            profile += inlandProgress * hillMask * 8.0;
+            double coastalShelf = seaLevel + MathHelper.lerp(landMass, -4.0, 8.0) + coastlineNoise * 2.0;
+            double rollingInterior = seaLevel + 12.0 + continentNoise * 8.0 + detailNoise * 4.0 + macroReliefNoise * 6.0;
+            double alpineCore = seaLevel + 42.0 + ridgeNoise * 52.0 + continentNoise * 12.0 + macroReliefNoise * 18.0;
+            double badlandsCore = seaLevel + 30.0 + ridgeNoise * 32.0 + badlandsSpireNoise * 24.0 + macroReliefNoise * 12.0;
+            double profile = MathHelper.lerp(landMass, coastalShelf, rollingInterior);
+            profile = MathHelper.lerp(Math.max(mountainMask, hillMask * 0.6), profile, alpineCore);
+            profile = MathHelper.lerp(badlandsMask, profile, Math.max(profile, badlandsCore));
+            profile -= Math.max(0.0, erosionNoise - 0.15) * 6.0;
+            profile += inlandProgress * hillMask * 12.0;
             profileHeight = (int) Math.round(profile);
 
-            if (landMass < 0.16) {
-                profileHeight = Math.min(profileHeight, seaLevel + (coastIn < coastOut ? 1 : 2));
+            if (landMass < 0.22) {
+                double coastalCap = seaLevel + MathHelper.lerp(landMass / 0.22, 2.0, 10.0);
+                profileHeight = Math.min(profileHeight, (int) Math.round(coastalCap));
             }
         } else {
             double oceanDrop = smoothRise(warpedDistance, 875.0, 1080.0);
@@ -209,7 +244,7 @@ public class PizzaChunkGenerator extends ChunkGenerator {
             profileHeight = (int) Math.round(MathHelper.lerp(oceanDrop, nearShelf, deepOcean));
         }
 
-        double preserveWeight = distance < 230.0 ? 0.25 : distance < 875.0 ? 0.68 : 0.35;
+        double preserveWeight = distance < 230.0 ? 0.20 : distance < 875.0 ? 0.52 : 0.30;
         int blended = (int) Math.round(MathHelper.lerp(preserveWeight, profileHeight, existingTop));
 
         if (warpedDistance >= 230.0 && warpedDistance <= 875.0) {
@@ -218,7 +253,7 @@ public class PizzaChunkGenerator extends ChunkGenerator {
         if (warpedDistance > 930.0) {
             blended = Math.min(blended, seaLevel - 3);
         }
-        return MathHelper.clamp(blended, Math.max(getMinimumY() + 4, existingTop - 48), existingTop + 42);
+        return MathHelper.clamp(blended, Math.max(getMinimumY() + 4, existingTop - 36), existingTop + 86);
     }
 
     private BlockState stoneFor(RegistryEntry<Biome> biome, int y, int terrainHeight) {
@@ -240,6 +275,16 @@ public class PizzaChunkGenerator extends ChunkGenerator {
         }
         double polarBoost = Math.max(0.0, Math.cos(angle * FULL_TURN));
         return MathHelper.clamp(noise * 0.2 + polarBoost * 0.15, 0.0, 0.45);
+    }
+
+    private double badlandsMaskForBiome(RegistryEntry<Biome> biome, int x, int z) {
+        Optional<RegistryKey<Biome>> key = biome.getKey();
+        if (!matches(key, BiomeKeys.BADLANDS, BiomeKeys.WOODED_BADLANDS, BiomeKeys.ERODED_BADLANDS)) {
+            return 0.0;
+        }
+        double broadNoise = Math.abs(OrganicNoise.sample(0xC16FC16FL, x, z, 210.0, 2));
+        double spireNoise = Math.abs(OrganicNoise.sample(0xFACEB00CL, x, z, 72.0, 3));
+        return MathHelper.clamp(0.45 + broadNoise * 0.28 + spireNoise * 0.22, 0.0, 1.0);
     }
 
     private double hillMaskForBiome(RegistryEntry<Biome> biome, int x, int z) {
@@ -302,7 +347,10 @@ public class PizzaChunkGenerator extends ChunkGenerator {
 
     private BlockState fillerBlockFor(RegistryEntry<Biome> biome) {
         Optional<RegistryKey<Biome>> key = biome.getKey();
-        if (matches(key, BiomeKeys.BADLANDS, BiomeKeys.WOODED_BADLANDS, BiomeKeys.ERODED_BADLANDS, BiomeKeys.DESERT, BiomeKeys.BEACH)) {
+        if (matches(key, BiomeKeys.BADLANDS, BiomeKeys.WOODED_BADLANDS, BiomeKeys.ERODED_BADLANDS)) {
+            return Blocks.RED_SAND.getDefaultState();
+        }
+        if (matches(key, BiomeKeys.DESERT, BiomeKeys.BEACH)) {
             return Blocks.SAND.getDefaultState();
         }
         if (matches(key, BiomeKeys.MUSHROOM_FIELDS)) {
