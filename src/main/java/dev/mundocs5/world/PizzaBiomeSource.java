@@ -112,10 +112,10 @@ public class PizzaBiomeSource extends BiomeSource {
         double outerBeachWidth = 18.0 + Math.abs(OrganicNoise.sample(layoutSeed ^ 0xAABBCCDDL, x, z, 180.0, 2)) * 10.0;
 
         if (distance < landConfig.innerOceanEnd() + innerBeachWidth) {
-            return beachFor(sector.climate());
+            return edgeBiomeFor(sector, 0.08, distance, x, z);
         }
         if (distance > landConfig.mainRingEnd() - outerBeachWidth) {
-            return beachFor(sector.climate());
+            return edgeBiomeFor(sector, 0.92, distance, x, z);
         }
 
         return pickBiomeFromSector(sector, ringProgress, distance, x, z, edgeBlend(angle, sector) > 0.70);
@@ -241,6 +241,13 @@ public class PizzaBiomeSource extends BiomeSource {
         return 1.0 - Math.abs(line) / width;
     }
 
+    private RegistryEntry<Biome> edgeBiomeFor(Sector sector, double ringProgress, double distance, double x, double z) {
+        if (!sector.hasBeach()) {
+            return pickBiomeFromSector(sector, ringProgress, distance, x, z, true);
+        }
+        return beachFor(sector.climate());
+    }
+
     private RegistryEntry<Biome> beachFor(Climate climate) {
         return climate == Climate.COLD || climate == Climate.ALPINE ? oceanConfig.snowyBeachBiome() : oceanConfig.beachBiome();
     }
@@ -302,64 +309,64 @@ public class PizzaBiomeSource extends BiomeSource {
     private List<Sector> buildSectors() {
         List<Sector> built = new ArrayList<>();
         double cursor = 0.0;
-        cursor = addSector(built, cursor, 0.11, "badlands", Climate.HOT, List.of(
+        cursor = addSector(built, cursor, 0.11, "badlands", Climate.HOT, true, List.of(
                 landConfig.warmBiomes().badlandsBiome(),
                 landConfig.warmBiomes().woodedBadlandsBiome(),
                 landConfig.warmBiomes().badlandsPlateauBiome(),
                 landConfig.warmBiomes().erodedBadlandsBiome()
         ), landConfig.warmBiomes().erodedBadlandsBiome());
-        cursor = addSector(built, cursor, 0.065, "savanna", Climate.WARM, List.of(
+        cursor = addSector(built, cursor, 0.065, "savanna", Climate.WARM, true, List.of(
                 landConfig.warmBiomes().savannaBiome(),
                 landConfig.warmBiomes().savannaPlateauBiome(),
                 landConfig.warmBiomes().windsweptSavannaBiome()
         ), landConfig.warmBiomes().windsweptSavannaBiome());
-        cursor = addSector(built, cursor, 0.08, "desert", Climate.HOT, List.of(
+        cursor = addSector(built, cursor, 0.08, "desert", Climate.HOT, true, List.of(
                 landConfig.warmBiomes().desertBiome(),
                 landConfig.warmBiomes().desertBiome(),
                 landConfig.warmBiomes().desertBiome()
         ), null);
-        cursor = addSector(built, cursor, 0.075, "mountain_transition", Climate.ALPINE, List.of(
+        cursor = addSector(built, cursor, 0.075, "mountain_transition", Climate.ALPINE, true, List.of(
                 landConfig.temperateBiomes().windsweptHillsBiome(),
                 landConfig.temperateBiomes().stonyPeaksBiome(),
                 landConfig.temperateBiomes().stonyPeaksBiome()
         ), landConfig.temperateBiomes().stonyPeaksBiome());
-        cursor = addSector(built, cursor, 0.07, "temperate_mountain_edge", Climate.TEMPERATE, List.of(
+        cursor = addSector(built, cursor, 0.07, "temperate_mountain_edge", Climate.TEMPERATE, true, List.of(
                 landConfig.temperateBiomes().cherryGroveBiome(),
                 landConfig.temperateBiomes().forestBiome(),
                 landConfig.temperateBiomes().flowerForestBiome()
         ), landConfig.temperateBiomes().cherryGroveBiome());
-        cursor = addSector(built, cursor, 0.09, "plains", Climate.TEMPERATE, List.of(
+        cursor = addSector(built, cursor, 0.09, "plains", Climate.TEMPERATE, true, List.of(
                 landConfig.temperateBiomes().plainsBiome(),
                 landConfig.temperateBiomes().plainsBiome(),
                 landConfig.temperateBiomes().plainsBiome()
         ), landConfig.temperateBiomes().stonyPeaksBiome());
-        cursor = addSector(built, cursor, 0.08, "taiga", Climate.COOL, List.of(
+        cursor = addSector(built, cursor, 0.08, "taiga", Climate.COOL, true, List.of(
                 landConfig.temperateBiomes().taigaBiome(),
                 landConfig.temperateBiomes().oldGrowthTaigaBiome()
         ), landConfig.temperateBiomes().oldGrowthTaigaBiome());
-        cursor = addSector(built, cursor, 0.055, "cold_taiga", Climate.COLD, List.of(
+        cursor = addSector(built, cursor, 0.055, "cold_taiga", Climate.COLD, true, List.of(
                 landConfig.coldBiomes().snowyTaigaBiome(),
                 landConfig.coldBiomes().snowyTaigaBiome()
         ), landConfig.coldBiomes().snowyTaigaBiome());
-        cursor = addSector(built, cursor, 0.09, "snow_mountains", Climate.ALPINE, List.of(
+        cursor = addSector(built, cursor, 0.09, "snow_mountains", Climate.ALPINE, true, List.of(
                 landConfig.coldBiomes().snowyPlainsBiome(),
                 landConfig.coldBiomes().frozenPeaksBiome(),
                 landConfig.coldBiomes().jaggedPeaksBiome()
         ), landConfig.coldBiomes().frozenPeaksBiome());
-        cursor = addSector(built, cursor, 0.08, "forest_pale", Climate.TEMPERATE, List.of(
+        cursor = addSector(built, cursor, 0.08, "forest_pale", Climate.TEMPERATE, true, List.of(
                 landConfig.temperateBiomes().forestBiome(),
                 landConfig.temperateBiomes().forestBiome(),
                 landConfig.temperateBiomes().flowerForestBiome()
         ), landConfig.temperateBiomes().paleGardenBiome());
-        cursor = addSector(built, cursor, 0.075, "swamp", Climate.WARM, List.of(
+        cursor = addSector(built, cursor, 0.075, "swamp", Climate.WARM, false, List.of(
                 landConfig.wetBiomes().swampBiome(),
                 landConfig.wetBiomes().mangroveSwampBiome()
         ), landConfig.wetBiomes().mangroveSwampBiome());
-        cursor = addSector(built, cursor, 0.05, "dark_forest_band", Climate.TEMPERATE, List.of(
+        cursor = addSector(built, cursor, 0.05, "dark_forest_band", Climate.TEMPERATE, false, List.of(
                 landConfig.temperateBiomes().darkForestBiome(),
                 landConfig.temperateBiomes().darkForestBiome()
         ), landConfig.temperateBiomes().paleGardenBiome());
-        addSector(built, cursor, 1.0 - cursor, "jungle", Climate.WARM, List.of(
+        addSector(built, cursor, 1.0 - cursor, "jungle", Climate.WARM, false, List.of(
                 landConfig.warmBiomes().jungleBiome(),
                 landConfig.warmBiomes().sparseJungleBiome(),
                 landConfig.warmBiomes().bambooJungleBiome()
@@ -367,8 +374,8 @@ public class PizzaBiomeSource extends BiomeSource {
         return List.copyOf(built);
     }
 
-    private double addSector(List<Sector> built, double start, double span, String name, Climate climate, List<RegistryEntry<Biome>> biomes, RegistryEntry<Biome> accentBiome) {
-        built.add(new Sector(name, start, start + span, climate, List.copyOf(biomes), accentBiome));
+    private double addSector(List<Sector> built, double start, double span, String name, Climate climate, boolean hasBeach, List<RegistryEntry<Biome>> biomes, RegistryEntry<Biome> accentBiome) {
+        built.add(new Sector(name, start, start + span, climate, hasBeach, List.copyOf(biomes), accentBiome));
         return start + span;
     }
 
@@ -403,7 +410,7 @@ public class PizzaBiomeSource extends BiomeSource {
     private LandConfig landConfig() { return landConfig; }
     private OceanConfig oceanConfig() { return oceanConfig; }
 
-    private record Sector(String name, double start, double end, Climate climate, List<RegistryEntry<Biome>> biomes,
+    private record Sector(String name, double start, double end, Climate climate, boolean hasBeach, List<RegistryEntry<Biome>> biomes,
                           RegistryEntry<Biome> accentBiome) {
         private double midpoint() {
             return (start + end) * 0.5;

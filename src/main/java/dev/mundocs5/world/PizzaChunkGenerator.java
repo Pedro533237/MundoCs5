@@ -325,6 +325,9 @@ public class PizzaChunkGenerator extends ChunkGenerator {
     private BlockState surfaceBlockFor(RegistryEntry<Biome> biome, int terrainHeight, int seaLevel) {
         Optional<RegistryKey<Biome>> key = biome.getKey();
         if (terrainHeight <= seaLevel) {
+            if (hasWetCoastline(key)) {
+                return wetCoastSurfaceBlock(key);
+            }
             return Blocks.SAND.getDefaultState();
         }
         if (matches(key, BiomeKeys.BADLANDS, BiomeKeys.WOODED_BADLANDS, BiomeKeys.ERODED_BADLANDS)) {
@@ -347,6 +350,9 @@ public class PizzaChunkGenerator extends ChunkGenerator {
 
     private BlockState fillerBlockFor(RegistryEntry<Biome> biome) {
         Optional<RegistryKey<Biome>> key = biome.getKey();
+        if (hasWetCoastline(key)) {
+            return matches(key, BiomeKeys.MANGROVE_SWAMP) ? Blocks.MUD.getDefaultState() : Blocks.DIRT.getDefaultState();
+        }
         if (matches(key, BiomeKeys.BADLANDS, BiomeKeys.WOODED_BADLANDS, BiomeKeys.ERODED_BADLANDS)) {
             return Blocks.RED_SAND.getDefaultState();
         }
@@ -357,6 +363,24 @@ public class PizzaChunkGenerator extends ChunkGenerator {
             return Blocks.DIRT.getDefaultState();
         }
         return Blocks.DIRT.getDefaultState();
+    }
+
+    private boolean hasWetCoastline(Optional<RegistryKey<Biome>> key) {
+        return matches(key,
+                BiomeKeys.JUNGLE,
+                BiomeKeys.SPARSE_JUNGLE,
+                BiomeKeys.BAMBOO_JUNGLE,
+                BiomeKeys.SWAMP,
+                BiomeKeys.MANGROVE_SWAMP,
+                BiomeKeys.DARK_FOREST
+        );
+    }
+
+    private BlockState wetCoastSurfaceBlock(Optional<RegistryKey<Biome>> key) {
+        if (matches(key, BiomeKeys.MANGROVE_SWAMP)) {
+            return Blocks.MUD.getDefaultState();
+        }
+        return Blocks.GRASS_BLOCK.getDefaultState();
     }
 
     @SafeVarargs
