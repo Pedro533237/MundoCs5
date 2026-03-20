@@ -46,14 +46,10 @@ public class PizzaBiomeSource extends BiomeSource {
     }
 
     @Override
-    protected MapCodec<? extends BiomeSource> getCodec() {
-        return CODEC;
-    }
+    protected MapCodec<? extends BiomeSource> getCodec() { return CODEC; }
 
     @Override
-    protected Stream<RegistryEntry<Biome>> biomeStream() {
-        return allBiomes.stream();
-    }
+    protected Stream<RegistryEntry<Biome>> biomeStream() { return allBiomes.stream(); }
 
     @Override
     public RegistryEntry<Biome> getBiome(int x, int y, int z, MultiNoiseUtil.MultiNoiseSampler noise) {
@@ -61,62 +57,39 @@ public class PizzaBiomeSource extends BiomeSource {
         double blockZ = z * 4.0;
         double baseDistance = Math.sqrt(blockX * blockX + blockZ * blockZ);
 
-        if (baseDistance >= landConfig.fallbackStart() + 256.0) {
-            return vanillaBiomeSource.getBiome(x, y, z, noise);
-        }
+        if (baseDistance >= landConfig.fallbackStart() + 256.0) return vanillaBiomeSource.getBiome(x, y, z, noise);
 
         double rawAngle = southClockwiseAngle(blockX, blockZ);
-        double angle = wrapNormalized(rawAngle + 0.125)
-                + OrganicNoise.sample(layoutSeed ^ 0x0F0F0F0FL, blockX, blockZ, 540.0, 2) * 0.018;
+        double angle = wrapNormalized(rawAngle + 0.125) + OrganicNoise.sample(layoutSeed ^ 0x0F0F0F0FL, blockX, blockZ, 540.0, 2) * 0.018;
                 
-        // ANEL IRREGULAR E NATURAL: Aumentada severamente a força de distorção dos biomas
-        double radialWarp = OrganicNoise.sample(layoutSeed ^ 0x1A2B3C4DL, blockX, blockZ, 380.0, 3) * 55.0;
-        double coastWarp = OrganicNoise.sample(layoutSeed ^ 0x55AA12FFL, blockX, blockZ, 140.0, 2) * 25.0;
+        // Distorção alinhada com as novas montanhas irregulares
+        double radialWarp = OrganicNoise.sample(layoutSeed ^ 0x2222L, blockX, blockZ, 200.0, 3) * 70.0;
+        double coastWarp = OrganicNoise.sample(layoutSeed ^ 0x3333L, blockX, blockZ, 60.0, 2) * 20.0;
         double irregularWarp = irregularRingWarp(blockX, blockZ, angle, baseDistance);
         double warpedDistance = Math.max(0.0, baseDistance + radialWarp + coastWarp + irregularWarp);
         angle = wrapNormalized(angle);
 
-        if (warpedDistance <= landConfig.centerRadius() + centerNoise(blockX, blockZ)) {
-            return landConfig.centerBiome();
-        }
-
-        if (warpedDistance >= landConfig.fallbackStart()) {
-            return vanillaBiomeSource.getBiome(x, y, z, noise);
-        }
+        if (warpedDistance <= landConfig.centerRadius() + centerNoise(blockX, blockZ)) return landConfig.centerBiome();
+        if (warpedDistance >= landConfig.fallbackStart()) return vanillaBiomeSource.getBiome(x, y, z, noise);
 
         boolean coldRegion = isColdSector(angle);
         RegistryEntry<Biome> riverBiome = pickRiverBiome(warpedDistance, angle, blockX, blockZ, coldRegion);
-        if (riverBiome != null) {
-            return riverBiome;
-        }
+        if (riverBiome != null) return riverBiome;
 
-        if (warpedDistance < landConfig.innerOceanEnd() + innerIslandNoise(blockX, blockZ)) {
-            return pickInnerOceanBiome(angle, warpedDistance, blockX, blockZ);
-        }
-
-        if (warpedDistance < landConfig.mainRingEnd()) {
-            return pickLandRingBiome(warpedDistance, angle, blockX, blockZ);
-        }
+        if (warpedDistance < landConfig.innerOceanEnd() + innerIslandNoise(blockX, blockZ)) return pickInnerOceanBiome(angle, warpedDistance, blockX, blockZ);
+        if (warpedDistance < landConfig.mainRingEnd()) return pickLandRingBiome(warpedDistance, angle, blockX, blockZ);
 
         return pickOuterOceanBiome(warpedDistance, angle, blockX, blockZ);
     }
 
     private RegistryEntry<Biome> pickLandRingBiome(double distance, double angle, double x, double z) {
         Sector sector = findSector(angle);
-        double ringProgress = MathHelper.clamp(
-                (distance - landConfig.innerOceanEnd()) / Math.max(1.0, landConfig.mainRingEnd() - landConfig.innerOceanEnd()),
-                0.0,
-                1.0
-        );
+        double ringProgress = MathHelper.clamp((distance - landConfig.innerOceanEnd()) / Math.max(1.0, landConfig.mainRingEnd() - landConfig.innerOceanEnd()), 0.0, 1.0);
         double innerBeachWidth = 14.0 + Math.abs(OrganicNoise.sample(layoutSeed ^ 0x99887766L, x, z, 150.0, 2)) * 10.0;
         double outerBeachWidth = 18.0 + Math.abs(OrganicNoise.sample(layoutSeed ^ 0xAABBCCDDL, x, z, 180.0, 2)) * 10.0;
 
-        if (distance < landConfig.innerOceanEnd() + innerBeachWidth) {
-            return edgeBiomeFor(sector, 0.08, distance, x, z);
-        }
-        if (distance > landConfig.mainRingEnd() - outerBeachWidth) {
-            return edgeBiomeFor(sector, 0.92, distance, x, z);
-        }
+        if (distance < landConfig.innerOceanEnd() + innerBeachWidth) return edgeBiomeFor(sector, 0.08, distance, x, z);
+        if (distance > landConfig.mainRingEnd() - outerBeachWidth) return edgeBiomeFor(sector, 0.92, distance, x, z);
 
         return pickBiomeFromSector(sector, ringProgress, distance, x, z, edgeBlend(angle, sector) > 0.70);
     }
@@ -136,13 +109,7 @@ public class PizzaBiomeSource extends BiomeSource {
             if (mountainPulse > 0.45 && sector.accentBiome() != null) return sector.accentBiome();
         }
 
-        int index = Math.floorMod(
-                (int) Math.floor(ringProgress * pool.size() * 1.8
-                        + distance / 135.0
-                        + OrganicNoise.sample(layoutSeed ^ 0x13572468L, x, z, 210.0, 2) * 1.8
-                        + (favorTransition ? 1 : 0)),
-                pool.size()
-        );
+        int index = Math.floorMod((int) Math.floor(ringProgress * pool.size() * 1.8 + distance / 135.0 + OrganicNoise.sample(layoutSeed ^ 0x13572468L, x, z, 210.0, 2) * 1.8 + (favorTransition ? 1 : 0)), pool.size());
         return pool.get(index);
     }
 
@@ -155,12 +122,7 @@ public class PizzaBiomeSource extends BiomeSource {
 
     private RegistryEntry<Biome> pickOuterOceanBiome(double distance, double angle, double x, double z) {
         double northSouth = southBias(angle) + OrganicNoise.sample(layoutSeed ^ 0x76543210L, x, z, 430.0, 2) * 0.10;
-        double progress = MathHelper.clamp(
-                (distance - landConfig.mainRingEnd()) / Math.max(1.0, landConfig.fallbackStart() - landConfig.mainRingEnd()),
-                0.0,
-                1.0
-        );
-
+        double progress = MathHelper.clamp((distance - landConfig.mainRingEnd()) / Math.max(1.0, landConfig.fallbackStart() - landConfig.mainRingEnd()), 0.0, 1.0);
         if (northSouth > 0.42) return progress > 0.55 ? oceanConfig.warmOceanBiome() : oceanConfig.lukewarmOceanBiome();
         if (northSouth < -0.55) return progress > 0.42 ? oceanConfig.frozenOceanBiome() : oceanConfig.coldOceanBiome();
         if (northSouth < -0.22) return progress > 0.68 ? oceanConfig.frozenOceanBiome() : oceanConfig.coldOceanBiome();
@@ -168,32 +130,23 @@ public class PizzaBiomeSource extends BiomeSource {
     }
 
     private RegistryEntry<Biome> pickRiverBiome(double distance, double angle, double x, double z, boolean coldRegion) {
-        if (distance < landConfig.innerOceanEnd() - 8.0 || distance > landConfig.mainRingEnd() - 6.0) {
-            return null;
-        }
+        if (distance < landConfig.innerOceanEnd() - 8.0 || distance > landConfig.mainRingEnd() - 6.0) return null;
 
-        double ringProgress = (distance - landConfig.innerOceanEnd()) / Math.max(1.0, landConfig.mainRingEnd() - landConfig.innerOceanEnd());
-        double riverBreaker = OrganicNoise.sample(layoutSeed ^ 0x9999L, x, z, 150.0, 2);
+        double riverWarp = distance + OrganicNoise.sample(layoutSeed ^ 0x999L, x, z, 100.0, 2) * 30.0;
+        double ringProgress = (riverWarp - landConfig.innerOceanEnd()) / Math.max(1.0, landConfig.mainRingEnd() - landConfig.innerOceanEnd());
         
-        // QUEBRA OS RIOS NO MEIO DA ILHA: Impede que os rios cortem a ilha de uma ponta a outra.
-        if (ringProgress > 0.3 && ringProgress < 0.7 && riverBreaker > -0.15) {
-            return null;
+        // Bloqueia e "mata" os rios no meio do anel (eles nunca atravessam de lado a lado)
+        if (ringProgress > 0.25 && ringProgress < 0.75) {
+            return null; 
         }
 
         RegistryEntry<Biome> boundaryRiver = pickBoundaryRiverBiome(distance, angle, x, z);
-        if (boundaryRiver != null) {
-            return boundaryRiver;
-        }
+        if (boundaryRiver != null) return boundaryRiver;
 
         double largeRiver = radialRiverNoise(layoutSeed ^ 0xABCDABCDL, angle, distance, 0.92, 0.18, 0.07);
         double mediumRiver = radialRiverNoise(layoutSeed ^ 0xDDCCBBAAL, angle, distance, 0.61, 0.14, 0.05);
 
-        boolean largeHit = largeRiver > 0.965;
-        boolean mediumHit = mediumRiver > 0.978;
-
-        if (largeHit || mediumHit) {
-            return coldRegion ? oceanConfig.frozenRiverBiome() : oceanConfig.riverBiome();
-        }
+        if (largeRiver > 0.965 || mediumRiver > 0.978) return coldRegion ? oceanConfig.frozenRiverBiome() : oceanConfig.riverBiome();
         return null;
     }
 
@@ -208,8 +161,7 @@ public class PizzaBiomeSource extends BiomeSource {
         double regionalWarp = OrganicNoise.sample(layoutSeed ^ 0x1234FEDCL, x, z, 330.0, 3) * 26.0;
         double jaggedWarp = OrganicNoise.sample(layoutSeed ^ 0x55FF11AAL, x, z, 140.0, 2) * 12.0;
         double lobeNoise = OrganicNoise.sample(layoutSeed ^ 0x77EE44CCL, x, z, 620.0, 2) * 0.18;
-        double lobes = Math.sin((angle + lobeNoise) * FULL_TURN * 3.0) * 38.0
-                + Math.cos((angle * 1.7 - lobeNoise) * FULL_TURN * 2.0) * 18.0;
+        double lobes = Math.sin((angle + lobeNoise) * FULL_TURN * 3.0) * 38.0 + Math.cos((angle * 1.7 - lobeNoise) * FULL_TURN * 2.0) * 18.0;
         double fade = MathHelper.clamp(distance / Math.max(1.0, landConfig.mainRingEnd()), 0.25, 1.0);
         return (continentalWarp + regionalWarp + jaggedWarp + lobes) * fade;
     }
@@ -264,26 +216,11 @@ public class PizzaBiomeSource extends BiomeSource {
         return 1.0 - MathHelper.clamp(nearestEdge / width, 0.0, 1.0);
     }
 
-    private double centerNoise(double x, double z) {
-        return OrganicNoise.sample(layoutSeed ^ 0xACACACACL, x, z, 90.0, 2) * 4.5;
-    }
-
-    private double innerIslandNoise(double x, double z) {
-        return OrganicNoise.sample(layoutSeed ^ 0xCDCDCDCDL, x, z, 100.0, 2) * 6.0;
-    }
-
-    private double southClockwiseAngle(double x, double z) {
-        double radians = Math.atan2(-x, z);
-        return wrapNormalized(radians / FULL_TURN);
-    }
-
-    private double angleFor(double x, double z) {
-        return southClockwiseAngle(x, z);
-    }
-
-    private double southBias(double angle) {
-        return Math.cos(angle * FULL_TURN);
-    }
+    private double centerNoise(double x, double z) { return OrganicNoise.sample(layoutSeed ^ 0xACACACACL, x, z, 90.0, 2) * 4.5; }
+    private double innerIslandNoise(double x, double z) { return OrganicNoise.sample(layoutSeed ^ 0xCDCDCDCDL, x, z, 100.0, 2) * 6.0; }
+    private double southClockwiseAngle(double x, double z) { return wrapNormalized(Math.atan2(-x, z) / FULL_TURN); }
+    private double angleFor(double x, double z) { return southClockwiseAngle(x, z); }
+    private double southBias(double angle) { return Math.cos(angle * FULL_TURN); }
 
     private double wrapNormalized(double value) {
         double wrapped = value % 1.0;
