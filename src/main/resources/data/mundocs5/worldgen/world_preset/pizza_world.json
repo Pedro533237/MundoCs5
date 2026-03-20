@@ -17,12 +17,17 @@
             "center_island_biome": "minecraft:mushroom_fields",
             "inner_ocean_biome": "minecraft:deep_ocean",
             "ring_biomes": [
-              "minecraft:ice_spikes",
-              "minecraft:dark_forest",
-              "minecraft:desert",
+              "minecraft:cherry_grove",
+              "minecraft:plains",
+              "minecraft:taiga",
+              "minecraft:frozen_peaks",
+              "minecraft:forest",
+              "minecraft:pale_garden",
               "minecraft:badlands",
-              "minecraft:jungle",
-              "minecraft:cherry_grove"
+              "minecraft:desert",
+              "minecraft:dark_forest",
+              "minecraft:swamp",
+              "minecraft:jungle"
             ],
             "outer_ocean_biome": "minecraft:deep_ocean"
           }
@@ -33,9 +38,13 @@
           "center_island_radius": 50,
           "inner_ocean_radius": 300,
           "outer_ring_radius": 1500,
-          "tunnel_y": 30,
-          "hub_room_radius": 4,
-          "tunnel_sector_count": 6
+          "inner_ocean_depth": 10,
+          "inner_ocean_floor_variance": 8,
+          "outer_ocean_depth": 14,
+          "outer_ocean_floor_variance": 12,
+          "coast_blend_width": 96.0,
+          "ring_height_bonus": 6,
+          "max_ring_rise": 70
         }
       }
     },

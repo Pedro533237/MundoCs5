@@ -18,13 +18,13 @@ import net.minecraft.world.biome.source.MultiNoiseBiomeSource;
 import net.minecraft.world.biome.source.util.MultiNoiseUtil;
 
 /**
- * Biome source that maps the world from the origin using polar coordinates.
+ * Custom biome source for a ring-shaped world centered on X=0/Z=0.
  *
- * <p>Math summary:
+ * <p>The important math is explicit here:
  * <ul>
- *   <li>radius = sqrt(x^2 + z^2)</li>
- *   <li>angle = atan2(z, x)</li>
- *   <li>the ring [300, 1500] is divided into equal angular sectors</li>
+ *   <li>radius = Math.sqrt(x*x + z*z)</li>
+ *   <li>angle = Math.atan2(z, x)</li>
+ *   <li>sliceIndex = floor(normalizedAngle / (2π / 11))</li>
  * </ul>
  */
 public class PizzaBiomeSource extends BiomeSource {
@@ -58,10 +58,12 @@ public class PizzaBiomeSource extends BiomeSource {
 
     @Override
     public RegistryEntry<Biome> getBiome(int x, int y, int z, MultiNoiseUtil.MultiNoiseSampler noise) {
+        // Minecraft queries biomes in quart coordinates, so convert back to block space
+        // before applying the requested world-scale geometry.
         double blockX = x * 4.0;
         double blockZ = z * 4.0;
 
-        // Exact radial distance from the world center (0, 0).
+        // Exact Euclidean distance to the origin.
         double radius = Math.sqrt(blockX * blockX + blockZ * blockZ);
 
         if (radius <= config.centerIslandRadius()) {
@@ -73,20 +75,21 @@ public class PizzaBiomeSource extends BiomeSource {
         }
 
         if (radius <= config.outerRingRadius()) {
-            // atan2(z, x) gives the angle in radians around the center.
+            // atan2 returns an angle in [-π, π].
             double angleRadians = Math.atan2(blockZ, blockX);
+            // Convert it into [0, 2π) so it can be split into equal pizza slices.
             double normalizedAngle = normalizeAngle(angleRadians);
-            int sectorIndex = sectorIndex(normalizedAngle, config.ringBiomes().size());
-            return config.ringBiomes().get(sectorIndex);
+            int sliceIndex = sliceIndex(normalizedAngle, config.ringBiomes().size());
+            return config.ringBiomes().get(sliceIndex);
         }
 
         return config.outerOceanBiome();
     }
 
-    private int sectorIndex(double normalizedAngle, int sectorCount) {
-        double sliceSize = FULL_TURN / sectorCount;
+    private int sliceIndex(double normalizedAngle, int sliceCount) {
+        double sliceSize = FULL_TURN / sliceCount;
         int index = MathHelper.floor(normalizedAngle / sliceSize);
-        return MathHelper.clamp(index, 0, sectorCount - 1);
+        return MathHelper.clamp(index, 0, sliceCount - 1);
     }
 
     private double normalizeAngle(double angleRadians) {
@@ -120,6 +123,14 @@ public class PizzaBiomeSource extends BiomeSource {
             List<RegistryEntry<Biome>> ringBiomes,
             RegistryEntry<Biome> outerOceanBiome
     ) {
+        public static final int REQUIRED_SLICE_COUNT = 11;
+
+        public PolarBiomeConfig {
+            if (ringBiomes.size() != REQUIRED_SLICE_COUNT) {
+                throw new IllegalArgumentException("ring_biomes must contain exactly 11 entries, got " + ringBiomes.size());
+            }
+        }
+
         public static final MapCodec<PolarBiomeConfig> MAP_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
                 Codec.intRange(1, 256).optionalFieldOf("center_island_radius", 50).forGetter(PolarBiomeConfig::centerIslandRadius),
                 Codec.intRange(1, 1024).optionalFieldOf("inner_ocean_radius", 300).forGetter(PolarBiomeConfig::innerOceanRadius),
