@@ -24,12 +24,12 @@ import net.minecraft.world.gen.chunk.VerticalBlockSample;
 import net.minecraft.world.gen.noise.NoiseConfig;
 
 /**
- * Chunk generator that keeps vanilla caves/structures but forces the requested
- * radial continent/ocean silhouette.
+ * Reshapes the overworld into a ring map near the origin and gradually returns
+ * to vanilla generation by radius 3000.
  */
 public class PizzaChunkGenerator extends ChunkGenerator {
     public static final MapCodec<PizzaChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-            PizzaBiomeSource.CODEC.fieldOf("biome_source").forGetter(generator -> (PizzaBiomeSource) generator.getBiomeSource()),
+            CustomRingBiomeSource.CODEC.fieldOf("biome_source").forGetter(generator -> (CustomRingBiomeSource) generator.getBiomeSource()),
             ChunkGeneratorSettings.REGISTRY_CODEC.fieldOf("settings").forGetter(PizzaChunkGenerator::settings),
             TerrainConfig.CODEC.fieldOf("terrain").forGetter(PizzaChunkGenerator::terrain)
     ).apply(instance, PizzaChunkGenerator::new));
@@ -38,7 +38,7 @@ public class PizzaChunkGenerator extends ChunkGenerator {
     private final TerrainConfig terrain;
     private final NoiseChunkGenerator delegate;
 
-    public PizzaChunkGenerator(PizzaBiomeSource biomeSource, RegistryEntry<ChunkGeneratorSettings> settings, TerrainConfig terrain) {
+    public PizzaChunkGenerator(CustomRingBiomeSource biomeSource, RegistryEntry<ChunkGeneratorSettings> settings, TerrainConfig terrain) {
         super(biomeSource);
         this.settings = settings;
         this.terrain = terrain;
@@ -65,7 +65,6 @@ public class PizzaChunkGenerator extends ChunkGenerator {
 
     @Override
     public void carve(ChunkRegion region, long seed, NoiseConfig noiseConfig, BiomeAccess biomeAccess, StructureAccessor structureAccessor, Chunk chunk) {
-        // Important: keep vanilla cave carving intact.
         delegate.carve(region, seed, noiseConfig, biomeAccess, structureAccessor, chunk);
     }
 
@@ -97,7 +96,7 @@ public class PizzaChunkGenerator extends ChunkGenerator {
     @Override
     public void appendDebugHudText(List<String> text, NoiseConfig noiseConfig, BlockPos pos) {
         delegate.appendDebugHudText(text, noiseConfig, pos);
-        text.add("Ring continent terrain active");
+        text.add("Ring map blend active");
     }
 
     @Override
@@ -143,8 +142,7 @@ public class PizzaChunkGenerator extends ChunkGenerator {
 
                 for (int y = minY; y <= maxY; y++) {
                     pos.set(worldX, y, worldZ);
-                    BlockState state = blockFor(y, surfaceY, radius);
-                    chunk.setBlockState(pos, state, 0);
+                    chunk.setBlockState(pos, blockFor(y, surfaceY, radius), 0);
                 }
             }
         }
@@ -155,13 +153,7 @@ public class PizzaChunkGenerator extends ChunkGenerator {
             return y <= terrain.seaLevel() ? Blocks.WATER.getDefaultState() : Blocks.AIR.getDefaultState();
         }
 
-        if (radius > terrain.centerIslandRadius() && radius <= terrain.innerOceanRadius()) {
-            if (y == surfaceY) return Blocks.GRAVEL.getDefaultState();
-            if (y >= surfaceY - 2) return Blocks.SAND.getDefaultState();
-            return Blocks.STONE.getDefaultState();
-        }
-
-        if (radius > terrain.outerRingRadius()) {
+        if (isOceanRadius(radius)) {
             if (y == surfaceY) return Blocks.GRAVEL.getDefaultState();
             if (y >= surfaceY - 2) return Blocks.SAND.getDefaultState();
             return Blocks.STONE.getDefaultState();
@@ -181,40 +173,47 @@ public class PizzaChunkGenerator extends ChunkGenerator {
     private int computeSurfaceHeight(int x, int z, NoiseConfig noiseConfig, HeightLimitView world) {
         double radius = radius(x, z);
         int seaLevel = terrain.seaLevel();
+        int vanillaHeight = delegate.getHeight(x, z, Heightmap.Type.OCEAN_FLOOR_WG, world, noiseConfig);
+
+        if (radius >= terrain.vanillaBlendRadius()) {
+            return vanillaHeight;
+        }
 
         if (radius <= terrain.centerIslandRadius()) {
-            // Radius 0..50 becomes a small dome at Y=65..70.
             double normalizedRadius = radius / Math.max(1.0, terrain.centerIslandRadius());
             double domeFactor = 1.0 - normalizedRadius;
-            double centerNoise = (OrganicNoise.sample(0xC0FFEE1L, x, z, 24.0, 2) + 1.0) * 0.5;
-            return seaLevel + 3 + MathHelper.floor(domeFactor * 3.0 + centerNoise * 2.0);
+            double centerNoise = (OrganicNoise.sample(0x11112222L, x, z, 28.0, 2) + 1.0) * 0.5;
+            return seaLevel + 3 + MathHelper.floor(domeFactor * 7.0 + centerNoise * 3.0);
         }
 
         if (radius <= terrain.innerOceanRadius()) {
-            // The internal lake stays below sea level so only water remains at Y=62.
-            double lakeNoise = (OrganicNoise.sample(0xC0FFEE2L, x, z, 36.0, 2) + 1.0) * 0.5;
-            return seaLevel - terrain.innerOceanDepth() - MathHelper.floor(lakeNoise * terrain.innerOceanFloorVariance());
+            double floorNoise = (OrganicNoise.sample(0x33334444L, x, z, 40.0, 2) + 1.0) * 0.5;
+            return seaLevel - terrain.innerOceanDepth() - MathHelper.floor(floorNoise * terrain.innerOceanVariance());
         }
 
         if (radius <= terrain.outerRingRadius()) {
-            // Reuse vanilla terrain to keep normal mountains/plains inside the ring.
-            int vanillaHeight = delegate.getHeight(x, z, Heightmap.Type.OCEAN_FLOOR_WG, world, noiseConfig);
-
-            // Fade the ring edges toward the sea so the donut shape is clearly visible.
             double innerFade = MathHelper.clamp((radius - terrain.innerOceanRadius()) / terrain.coastBlendWidth(), 0.0, 1.0);
             double outerFade = MathHelper.clamp((terrain.outerRingRadius() - radius) / terrain.coastBlendWidth(), 0.0, 1.0);
             double coastalBlend = Math.min(innerFade, outerFade);
-            double bonusLift = Math.sin((radius - terrain.innerOceanRadius()) / Math.max(1.0, terrain.outerRingRadius() - terrain.innerOceanRadius()) * Math.PI) * terrain.ringHeightBonus();
-            int inlandHeight = Math.max(seaLevel + 2, Math.min(vanillaHeight + MathHelper.floor(bonusLift), seaLevel + terrain.maxRingRise()));
-            return MathHelper.floor(MathHelper.lerp(coastalBlend, seaLevel + 1, inlandHeight));
+            double ringNoise = Math.sin((radius - terrain.innerOceanRadius()) / Math.max(1.0, terrain.outerRingRadius() - terrain.innerOceanRadius()) * Math.PI) * terrain.ringLift();
+            int ringTarget = Math.max(seaLevel + 2, Math.min(vanillaHeight + MathHelper.floor(ringNoise), seaLevel + terrain.maxRingRise()));
+            return MathHelper.floor(MathHelper.lerp(coastalBlend, seaLevel + 1, ringTarget));
         }
 
-        double outerOceanNoise = (OrganicNoise.sample(0xC0FFEE3L, x, z, 52.0, 2) + 1.0) * 0.5;
-        return seaLevel - terrain.outerOceanDepth() - MathHelper.floor(outerOceanNoise * terrain.outerOceanFloorVariance());
+        double oceanNoise = (OrganicNoise.sample(0x55556666L, x, z, 60.0, 2) + 1.0) * 0.5;
+        int oceanTarget = seaLevel - terrain.outerOceanDepth() - MathHelper.floor(oceanNoise * terrain.outerOceanVariance());
+
+        // Blend the transition ocean back into vanilla between outerRingRadius and vanillaBlendRadius.
+        double blend = MathHelper.clamp((radius - terrain.outerRingRadius()) / Math.max(1.0, terrain.vanillaBlendRadius() - terrain.outerRingRadius()), 0.0, 1.0);
+        return MathHelper.floor(MathHelper.lerp(blend, oceanTarget, vanillaHeight));
+    }
+
+    private boolean isOceanRadius(double radius) {
+        return (radius > terrain.centerIslandRadius() && radius <= terrain.innerOceanRadius())
+                || (radius > terrain.outerRingRadius() && radius < terrain.vanillaBlendRadius());
     }
 
     private double radius(int x, int z) {
-        // Exact Euclidean distance from the center: sqrt(x² + z²).
         return Math.sqrt((double) x * x + (double) z * z);
     }
 
@@ -223,26 +222,28 @@ public class PizzaChunkGenerator extends ChunkGenerator {
             int centerIslandRadius,
             int innerOceanRadius,
             int outerRingRadius,
+            int vanillaBlendRadius,
             int innerOceanDepth,
-            int innerOceanFloorVariance,
+            int innerOceanVariance,
             int outerOceanDepth,
-            int outerOceanFloorVariance,
+            int outerOceanVariance,
             double coastBlendWidth,
-            int ringHeightBonus,
+            int ringLift,
             int maxRingRise
     ) {
         public static final MapCodec<TerrainConfig> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
                 Codec.intRange(-64, 320).optionalFieldOf("sea_level", 62).forGetter(TerrainConfig::seaLevel),
-                Codec.intRange(1, 256).optionalFieldOf("center_island_radius", 50).forGetter(TerrainConfig::centerIslandRadius),
+                Codec.intRange(1, 256).optionalFieldOf("center_island_radius", 70).forGetter(TerrainConfig::centerIslandRadius),
                 Codec.intRange(1, 1024).optionalFieldOf("inner_ocean_radius", 300).forGetter(TerrainConfig::innerOceanRadius),
-                Codec.intRange(1, 4096).optionalFieldOf("outer_ring_radius", 1500).forGetter(TerrainConfig::outerRingRadius),
-                Codec.intRange(1, 64).optionalFieldOf("inner_ocean_depth", 10).forGetter(TerrainConfig::innerOceanDepth),
-                Codec.intRange(0, 64).optionalFieldOf("inner_ocean_floor_variance", 8).forGetter(TerrainConfig::innerOceanFloorVariance),
-                Codec.intRange(1, 64).optionalFieldOf("outer_ocean_depth", 14).forGetter(TerrainConfig::outerOceanDepth),
-                Codec.intRange(0, 64).optionalFieldOf("outer_ocean_floor_variance", 12).forGetter(TerrainConfig::outerOceanFloorVariance),
-                Codec.DOUBLE.optionalFieldOf("coast_blend_width", 96.0).forGetter(TerrainConfig::coastBlendWidth),
-                Codec.intRange(0, 64).optionalFieldOf("ring_height_bonus", 6).forGetter(TerrainConfig::ringHeightBonus),
-                Codec.intRange(1, 128).optionalFieldOf("max_ring_rise", 70).forGetter(TerrainConfig::maxRingRise)
+                Codec.intRange(1, 4096).optionalFieldOf("outer_ring_radius", 2000).forGetter(TerrainConfig::outerRingRadius),
+                Codec.intRange(1, 8192).optionalFieldOf("vanilla_blend_radius", 3000).forGetter(TerrainConfig::vanillaBlendRadius),
+                Codec.intRange(1, 64).optionalFieldOf("inner_ocean_depth", 12).forGetter(TerrainConfig::innerOceanDepth),
+                Codec.intRange(0, 64).optionalFieldOf("inner_ocean_variance", 10).forGetter(TerrainConfig::innerOceanVariance),
+                Codec.intRange(1, 64).optionalFieldOf("outer_ocean_depth", 18).forGetter(TerrainConfig::outerOceanDepth),
+                Codec.intRange(0, 64).optionalFieldOf("outer_ocean_variance", 12).forGetter(TerrainConfig::outerOceanVariance),
+                Codec.DOUBLE.optionalFieldOf("coast_blend_width", 128.0).forGetter(TerrainConfig::coastBlendWidth),
+                Codec.intRange(0, 96).optionalFieldOf("ring_lift", 10).forGetter(TerrainConfig::ringLift),
+                Codec.intRange(1, 256).optionalFieldOf("max_ring_rise", 110).forGetter(TerrainConfig::maxRingRise)
         ).apply(instance, TerrainConfig::new));
     }
 }

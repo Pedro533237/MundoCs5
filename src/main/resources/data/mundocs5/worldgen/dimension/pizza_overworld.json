@@ -3,46 +3,53 @@
   "generator": {
     "type": "mundocs5:pizza_generator",
     "biome_source": {
-      "type": "mundocs5:pizza",
+      "type": "mundocs5:custom_ring",
       "vanilla": {
         "type": "minecraft:multi_noise",
         "preset": "minecraft:overworld"
       },
       "config": {
-        "center_island_radius": 50,
+        "center_island_radius": 70,
         "inner_ocean_radius": 300,
-        "outer_ring_radius": 1500,
+        "outer_ocean_start": 2000,
+        "vanilla_blend_start": 3000,
         "center_island_biome": "minecraft:mushroom_fields",
-        "inner_ocean_biome": "minecraft:deep_ocean",
-        "ring_biomes": [
-          "minecraft:cherry_grove",
-          "minecraft:plains",
-          "minecraft:taiga",
-          "minecraft:frozen_peaks",
-          "minecraft:forest",
-          "minecraft:pale_garden",
-          "minecraft:badlands",
-          "minecraft:desert",
-          "minecraft:dark_forest",
-          "minecraft:swamp",
-          "minecraft:jungle"
-        ],
-        "outer_ocean_biome": "minecraft:deep_ocean"
+        "ocean_biome": "minecraft:deep_ocean",
+        "sectors": {
+          "east_biomes": ["minecraft:windswept_hills", "minecraft:stony_peaks"],
+          "south_east_biomes": ["minecraft:jungle", "minecraft:bamboo_jungle"],
+          "south_biomes": ["minecraft:desert", "minecraft:badlands"],
+          "south_west_biomes": ["minecraft:plains", "minecraft:meadow"],
+          "west_biomes": ["minecraft:taiga", "minecraft:old_growth_pine_taiga"],
+          "north_west_biomes": ["minecraft:dark_forest", "minecraft:forest", "minecraft:flower_forest"],
+          "north_biomes": ["minecraft:snowy_plains", "minecraft:snowy_taiga", "minecraft:ice_spikes", "minecraft:frozen_peaks"]
+        },
+        "angle_warp": {
+          "seed": 3405697037,
+          "scale": 320.0,
+          "strength": 90.0
+        },
+        "secondary_selection_noise": {
+          "seed": 78193085935,
+          "scale": 220.0,
+          "strength": 1.0
+        }
       }
     },
     "settings": "minecraft:overworld",
     "terrain": {
       "sea_level": 62,
-      "center_island_radius": 50,
+      "center_island_radius": 70,
       "inner_ocean_radius": 300,
-      "outer_ring_radius": 1500,
-      "inner_ocean_depth": 10,
-      "inner_ocean_floor_variance": 8,
-      "outer_ocean_depth": 14,
-      "outer_ocean_floor_variance": 12,
-      "coast_blend_width": 96.0,
-      "ring_height_bonus": 6,
-      "max_ring_rise": 70
+      "outer_ring_radius": 2000,
+      "vanilla_blend_radius": 3000,
+      "inner_ocean_depth": 12,
+      "inner_ocean_variance": 10,
+      "outer_ocean_depth": 18,
+      "outer_ocean_variance": 12,
+      "coast_blend_width": 128.0,
+      "ring_lift": 10,
+      "max_ring_rise": 110
     }
   }
 }
