@@ -195,14 +195,14 @@ public class PizzaChunkGenerator extends ChunkGenerator {
 
                     if (y > targetHeight) {
                         if (y <= seaLevel) {
-                            if (!existing.isOf(Blocks.WATER)) chunk.setBlockState(mutable, water, false);
+                            if (!existing.isOf(Blocks.WATER)) chunk.setBlockState(mutable, water, 0);
                         } else {
-                            if (!existing.isAir()) chunk.setBlockState(mutable, air, false);
+                            if (!existing.isAir()) chunk.setBlockState(mutable, air, 0);
                         }
                     } else {
                         // Preenche buracos novos apenas se for ar ou água. Cavernas do Minecraft serão cravadas DEPOIS disso!
                         if (existing.isAir() || existing.isOf(Blocks.WATER)) {
-                            chunk.setBlockState(mutable, stone, false);
+                            chunk.setBlockState(mutable, stone, 0);
                         }
                     }
                 }
