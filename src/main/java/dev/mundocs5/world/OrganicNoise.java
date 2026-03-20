@@ -33,8 +33,10 @@ public final class OrganicNoise {
 
         double tx = x - x0;
         double tz = z - z0;
-        double u = smoothstep(tx);
-        double v = smoothstep(tz);
+        
+        // CORREÇÃO: Utilizando o Fade Quíntico para transições perfeitas
+        double u = fade(tx);
+        double v = fade(tz);
 
         double n00 = random(seed, x0, z0);
         double n10 = random(seed, x1, z0);
@@ -48,8 +50,9 @@ public final class OrganicNoise {
 
     private static double random(long seed, int x, int z) {
         long hash = seed;
-        hash ^= x * 0x632BE59BD9B4E019L;
-        hash ^= z * 0x9E3779B97F4A7C15L;
+        // CORREÇÃO: Casting explícito para long e proteção contra eixos zerados para evitar padrões repetitivos
+        hash ^= (x == 0 ? 0x1B873593L : (long) x) * 0x632BE59BD9B4E019L;
+        hash ^= (z == 0 ? 0x27491C75L : (long) z) * 0x9E3779B97F4A7C15L;
         hash = (hash ^ (hash >>> 30)) * 0xBF58476D1CE4E5B9L;
         hash = (hash ^ (hash >>> 27)) * 0x94D049BB133111EBL;
         hash ^= hash >>> 31;
@@ -61,8 +64,13 @@ public final class OrganicNoise {
         return value < truncated ? truncated - 1 : truncated;
     }
 
-    private static double smoothstep(double value) {
-        return value * value * (3.0 - 2.0 * value);
+    /**
+     * CORREÇÃO: Interpolação Quíntica de Ken Perlin (6x^5 - 15x^4 + 10x^3).
+     * Substitui o smoothstep antigo (3x^2 - 2x^3) para eliminar completamente 
+     * a aparência de grade/linhas retas na geração de biomas e montanhas.
+     */
+    private static double fade(double t) {
+        return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
     }
 
     private static double lerp(double start, double end, double delta) {
