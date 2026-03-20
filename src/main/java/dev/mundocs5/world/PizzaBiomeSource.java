@@ -65,8 +65,12 @@ public class PizzaBiomeSource extends BiomeSource {
             return vanillaBiomeSource.getBiome(x, y, z, noise);
         }
 
-        double angle = southClockwiseAngle(blockX, blockZ)
+        double rawAngle = southClockwiseAngle(blockX, blockZ);
+        
+        // CORREÇÃO: Adicionado +0.125 (45 graus) para girar o anel e alinhar as Badlands no Sudeste, igual à imagem!
+        double angle = wrapNormalized(rawAngle + 0.125)
                 + OrganicNoise.sample(layoutSeed ^ 0x0F0F0F0FL, blockX, blockZ, 540.0, 2) * 0.018;
+                
         double radialWarp = OrganicNoise.sample(layoutSeed ^ 0x1A2B3C4DL, blockX, blockZ, 460.0, 3) * 34.0;
         double coastWarp = OrganicNoise.sample(layoutSeed ^ 0x55AA12FFL, blockX, blockZ, 170.0, 2) * 18.0;
         double irregularWarp = irregularRingWarp(blockX, blockZ, angle, baseDistance);
@@ -88,10 +92,7 @@ public class PizzaBiomeSource extends BiomeSource {
         }
 
         if (warpedDistance < landConfig.innerOceanEnd() + innerIslandNoise(blockX, blockZ)) {
-            RegistryEntry<Biome> islandBiome = pickInnerOceanIslandBiome(warpedDistance, angle, blockX, blockZ);
-            if (islandBiome != null) {
-                return islandBiome;
-            }
+            // CORREÇÃO: Removidas as ilhas aleatórias no lago para deixá-lo limpo como na imagem
             return pickInnerOceanBiome(angle, warpedDistance, blockX, blockZ);
         }
 
@@ -179,17 +180,6 @@ public class PizzaBiomeSource extends BiomeSource {
         return oceanConfig.temperateOceanBiome();
     }
 
-    private RegistryEntry<Biome> pickInnerOceanIslandBiome(double distance, double angle, double x, double z) {
-        double ringCenter = (landConfig.centerRadius() + landConfig.innerOceanEnd()) * 0.5;
-        double islandBand = 1.0 - Math.abs(distance - ringCenter) / Math.max(1.0, (landConfig.innerOceanEnd() - landConfig.centerRadius()) * 0.5);
-        double islandNoise = OrganicNoise.sample(layoutSeed ^ 0x42424242L, x, z, 84.0, 3)
-                + OrganicNoise.sample(layoutSeed ^ 0x10101010L, x, z, 34.0, 2) * 0.35;
-        if (islandBand > 0.22 && islandNoise > 0.52) {
-            return southBias(angle) > 0.25 ? landConfig.warmBiomes().savannaBiome() : landConfig.temperateBiomes().forestBiome();
-        }
-        return null;
-    }
-
     private RegistryEntry<Biome> pickOuterOceanBiome(double distance, double angle, double x, double z) {
         double northSouth = southBias(angle) + OrganicNoise.sample(layoutSeed ^ 0x76543210L, x, z, 430.0, 2) * 0.10;
         double progress = MathHelper.clamp(
@@ -220,20 +210,14 @@ public class PizzaBiomeSource extends BiomeSource {
             return boundaryRiver;
         }
 
-        double mountainMask = 0.0;
-        for (Sector sector : sectors) {
-            if (sector.climate() == Climate.ALPINE || sector.climate() == Climate.COLD) {
-                mountainMask = Math.max(mountainMask, 1.0 - Math.abs(wrapSigned(angle - sector.midpoint())) / (sector.span() * 0.65));
-            }
-        }
-
         double largeRiver = radialRiverNoise(layoutSeed ^ 0xABCDABCDL, angle, distance, 0.92, 0.18, 0.07);
         double mediumRiver = radialRiverNoise(layoutSeed ^ 0xDDCCBBAAL, angle, distance, 0.61, 0.14, 0.05);
         double thinRiver = radialRiverNoise(layoutSeed ^ 0xCAFEBABEL, angle, distance, 0.37, 0.11, 0.035);
 
-        boolean largeHit = largeRiver > 0.965 && mountainMask > 0.18;
-        boolean mediumHit = mediumRiver > 0.978 && mountainMask > 0.12;
-        boolean thinHit = thinRiver > 0.987 && mountainMask > 0.08;
+        // CORREÇÃO: Limpamos a restrição antiga (mountainMask) para que os rios fluam por qualquer bioma naturalmente
+        boolean largeHit = largeRiver > 0.965;
+        boolean mediumHit = mediumRiver > 0.978;
+        boolean thinHit = thinRiver > 0.987;
 
         if (largeHit || mediumHit || thinHit) {
             return coldRegion ? oceanConfig.frozenRiverBiome() : oceanConfig.riverBiome();
@@ -246,7 +230,6 @@ public class PizzaBiomeSource extends BiomeSource {
         double line = OrganicNoise.sample(seed, curvedAngle * (1.0 / angleScale), distance * distanceScale, 1.0, 3);
         return 1.0 - Math.abs(line) / width;
     }
-
 
     private double irregularRingWarp(double x, double z, double angle, double distance) {
         double continentalWarp = OrganicNoise.sample(layoutSeed ^ 0x6E6F6DADL, x, z, 820.0, 3) * 52.0;
