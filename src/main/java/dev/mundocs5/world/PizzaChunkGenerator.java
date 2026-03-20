@@ -32,7 +32,6 @@ public class PizzaChunkGenerator extends ChunkGenerator {
             ChunkGeneratorSettings.REGISTRY_CODEC.fieldOf("settings").forGetter(PizzaChunkGenerator::settings)
     ).apply(instance, PizzaChunkGenerator::new));
 
-    private static final double FULL_TURN = Math.PI * 2.0;
     private final PizzaBiomeSource biomeSource;
     private final RegistryEntry<ChunkGeneratorSettings> settings;
     private final NoiseChunkGenerator delegate;
@@ -45,12 +44,35 @@ public class PizzaChunkGenerator extends ChunkGenerator {
     }
 
     @Override
-    protected MapCodec<? extends ChunkGenerator> getCodec() {
-        return CODEC;
+    protected MapCodec<? extends ChunkGenerator> getCodec() { return CODEC; }
+
+    public RegistryEntry<ChunkGeneratorSettings> settings() { return settings; }
+
+    // Sincroniza a altura das estruturas (Vilas, Barcos, Árvores) com a nossa ilha
+    @Override
+    public int getHeight(int x, int z, Heightmap.Type heightmap, HeightLimitView world, NoiseConfig noiseConfig) {
+        int vanillaHeight = delegate.getHeight(x, z, heightmap, world, noiseConfig);
+        RegistryEntry<Biome> biome = biomeSource.getBiome(x >> 2, vanillaHeight >> 2, z >> 2, noiseConfig.getMultiNoiseSampler());
+        return calculateTargetHeight(x, z, vanillaHeight, biome);
     }
 
-    public RegistryEntry<ChunkGeneratorSettings> settings() {
-        return settings;
+    // Usado pelo jogo para prever buracos para as Cavernas e Construções (corrige o bug das paredes)
+    @Override
+    public VerticalBlockSample getColumnSample(int x, int z, HeightLimitView world, NoiseConfig noiseConfig) {
+        int vanillaHeight = delegate.getHeight(x, z, Heightmap.Type.OCEAN_FLOOR_WG, world, noiseConfig);
+        RegistryEntry<Biome> biome = biomeSource.getBiome(x >> 2, vanillaHeight >> 2, z >> 2, noiseConfig.getMultiNoiseSampler());
+        int targetY = calculateTargetHeight(x, z, vanillaHeight, biome);
+        
+        int bottomY = world.getBottomY();
+        BlockState[] states = new BlockState[world.getHeight()];
+        for (int y = bottomY; y < bottomY + world.getHeight(); y++) {
+            if (y > targetY) {
+                states[y - bottomY] = y <= getSeaLevel() ? Blocks.WATER.getDefaultState() : Blocks.AIR.getDefaultState();
+            } else {
+                states[y - bottomY] = Blocks.STONE.getDefaultState();
+            }
+        }
+        return new VerticalBlockSample(bottomY, states);
     }
 
     @Override
@@ -74,6 +96,21 @@ public class PizzaChunkGenerator extends ChunkGenerator {
     }
 
     @Override
+    public int getWorldHeight() { return delegate.getWorldHeight(); }
+
+    @Override
+    public int getSeaLevel() { return delegate.getSeaLevel(); }
+
+    @Override
+    public int getMinimumY() { return delegate.getMinimumY(); }
+
+    @Override
+    public void appendDebugHudText(List<String> text, NoiseConfig noiseConfig, BlockPos pos) {
+        delegate.appendDebugHudText(text, noiseConfig, pos);
+        text.add("Pizza terrain: Organic sync active");
+    }
+
+    @Override
     public CompletableFuture<Chunk> populateNoise(Blender blender, NoiseConfig noiseConfig, StructureAccessor structureAccessor, Chunk chunk) {
         return delegate.populateNoise(blender, noiseConfig, structureAccessor, chunk).thenApply(generated -> {
             shapePizzaTerrain(generated);
@@ -81,64 +118,62 @@ public class PizzaChunkGenerator extends ChunkGenerator {
         });
     }
 
-    @Override
-    public int getWorldHeight() {
-        return delegate.getWorldHeight();
+    // Calcula a forma da ilha distorcida (Sem recortes de Chunks)
+    private double getPizzaMask(int x, int z) {
+        double distance = Math.sqrt((double) x * x + (double) z * z);
+        
+        // Distorções altíssimas para ficar com forma natural do Minecraft
+        double centerWarp = distance + OrganicNoise.sample(0x1111L, x, z, 100.0, 3) * 35.0;
+        double centerMask = 1.0 - smoothRise(centerWarp, 45.0, 85.0); 
+        
+        double ringWarp = distance 
+            + OrganicNoise.sample(0x2222L, x, z, 200.0, 3) * 70.0 
+            + OrganicNoise.sample(0x3333L, x, z, 60.0, 2) * 20.0;
+            
+        double innerCoast = smoothRise(ringWarp, 170.0, 230.0);
+        double outerCoast = 1.0 - smoothRise(ringWarp, 750.0, 880.0); 
+        double ringMask = Math.min(innerCoast, outerCoast); 
+        
+        double totalLandMask = Math.max(centerMask, ringMask);
+        return totalLandMask * 2.0 - 1.0; // Retorna entre -1.0 (Fundo do Mar) e 1.0 (Terra Alta)
     }
 
-    @Override
-    public int getSeaLevel() {
-        return delegate.getSeaLevel();
-    }
-
-    @Override
-    public int getMinimumY() {
-        return delegate.getMinimumY();
-    }
-
-    @Override
-    public int getHeight(int x, int z, Heightmap.Type heightmap, HeightLimitView world, NoiseConfig noiseConfig) {
-        return delegate.getHeight(x, z, heightmap, world, noiseConfig);
-    }
-
-    @Override
-    public VerticalBlockSample getColumnSample(int x, int z, HeightLimitView world, NoiseConfig noiseConfig) {
-        return delegate.getColumnSample(x, z, world, noiseConfig);
-    }
-
-    @Override
-    public void appendDebugHudText(List<String> text, NoiseConfig noiseConfig, BlockPos pos) {
-        delegate.appendDebugHudText(text, noiseConfig, pos);
-        text.add("Pizza terrain: radial chunk generator active");
+    // Mistura o mapa natural com o formato que queremos
+    private int calculateTargetHeight(int x, int z, int vanillaHeight, RegistryEntry<Biome> biome) {
+        double mask = getPizzaMask(x, z);
+        int seaLevel = getSeaLevel();
+        
+        if (mask > 0) { // Estamos na TERRA
+            int height = vanillaHeight;
+            double distance = Math.sqrt((double) x * x + (double) z * z);
+            
+            // Relevo na Ilha de Cogumelo Central
+            if (distance < 120.0) {
+                height += (int) (Math.abs(OrganicNoise.sample(0x5555L, x, z, 60.0, 3)) * 25.0 * mask);
+                height = Math.max(height, seaLevel + 5 + (int)(mask * 10)); // Base elevada
+            }
+            
+            // Garante que a terra fique acima d'água, A MENOS que seja um Rio
+            if (!isRiverBiome(biome) && height < seaLevel + 1) {
+                height = seaLevel + 1;
+            }
+            
+            // Mistura suavemente a praia (seaLevel) com a montanha Vanilla (height)
+            return (int) MathHelper.lerp(mask, seaLevel, height);
+        } else { // Estamos no OCEANO
+            // Força as montanhas de fora do anel para debaixo d'água
+            int targetOcean = Math.min(vanillaHeight, seaLevel - 4 + (int)(mask * 25));
+            return (int) MathHelper.lerp(-mask, seaLevel, targetOcean);
+        }
     }
 
     private void shapePizzaTerrain(Chunk chunk) {
         BlockPos.Mutable mutable = new BlockPos.Mutable();
         int seaLevel = getSeaLevel();
         int minY = getMinimumY();
-        int maxY = minY + chunk.getHeight() - 1;
+        int maxY = chunk.getHeight() + minY - 1;
         int startX = chunk.getPos().getStartX();
         int startZ = chunk.getPos().getStartZ();
-
-        int[][] targetHeights = new int[16][16];
-
-        // Sem suavização artificial! Pegamos a altura crua para ficar com cara de Minecraft.
-        for (int localX = 0; localX < 16; localX++) {
-            for (int localZ = 0; localZ < 16; localZ++) {
-                int worldX = startX + localX;
-                int worldZ = startZ + localZ;
-                double distance = Math.sqrt((double) worldX * worldX + (double) worldZ * worldZ);
-
-                if (distance > 2048.0) {
-                    targetHeights[localX][localZ] = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE_WG, localX, localZ);
-                    continue;
-                }
-
-                int existingTop = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE_WG, localX, localZ);
-                RegistryEntry<Biome> biome = chunk.getBiomeForNoiseGen(localX >> 2, Math.max(minY, existingTop) >> 2, localZ >> 2);
-                targetHeights[localX][localZ] = sampleTerrainHeight(worldX, worldZ, seaLevel, existingTop, biome);
-            }
-        }
 
         BlockState stone = Blocks.STONE.getDefaultState();
         BlockState water = Blocks.WATER.getDefaultState();
@@ -148,24 +183,26 @@ public class PizzaChunkGenerator extends ChunkGenerator {
             for (int localZ = 0; localZ < 16; localZ++) {
                 int worldX = startX + localX;
                 int worldZ = startZ + localZ;
-                int targetHeight = targetHeights[localX][localZ];
 
+                int vanillaHeight = chunk.sampleHeightmap(Heightmap.Type.OCEAN_FLOOR_WG, localX, localZ);
+                RegistryEntry<Biome> biome = chunk.getBiomeForNoiseGen(localX >> 2, vanillaHeight >> 2, localZ >> 2);
+                int targetHeight = calculateTargetHeight(worldX, worldZ, vanillaHeight, biome);
+
+                // Aplica a escultura perfeitamente nas cavernas
                 for (int y = maxY; y >= minY; y--) {
                     mutable.set(worldX, y, worldZ);
                     BlockState existing = chunk.getBlockState(mutable);
 
                     if (y > targetHeight) {
-                        // Limpa os blocos que passaram da altura permitida
                         if (y <= seaLevel) {
-                            if (!existing.isOf(Blocks.WATER)) chunk.setBlockState(mutable, water, 0);
+                            if (!existing.isOf(Blocks.WATER)) chunk.setBlockState(mutable, water, false);
                         } else {
-                            if (!existing.isAir()) chunk.setBlockState(mutable, air, 0);
+                            if (!existing.isAir()) chunk.setBlockState(mutable, air, false);
                         }
                     } else {
-                        // ESTILO MINECRAFT: Apenas preenchemos o ar nas camadas SUPERIORES. 
-                        // Isso preserva TODAS as cavernas e ravinas do Vanilla no subterrâneo!
-                        if (y >= targetHeight - 5 && (existing.isAir() || existing.isOf(Blocks.WATER))) {
-                            chunk.setBlockState(mutable, stone, 0);
+                        // Preenche buracos novos apenas se for ar ou água. Cavernas do Minecraft serão cravadas DEPOIS disso!
+                        if (existing.isAir() || existing.isOf(Blocks.WATER)) {
+                            chunk.setBlockState(mutable, stone, false);
                         }
                     }
                 }
@@ -177,108 +214,8 @@ public class PizzaChunkGenerator extends ChunkGenerator {
         return matches(biome.getKey(), BiomeKeys.RIVER, BiomeKeys.FROZEN_RIVER);
     }
 
-    private int sampleTerrainHeight(int x, int z, int seaLevel, int existingTop, RegistryEntry<Biome> biome) {
-        double distance = Math.sqrt((double) x * x + (double) z * z);
-        
-        // DISTORÇÃO EXTREMA: A ilha não é mais um círculo. Ficará torta, orgânica e natural.
-        double warpedDistance = distance
-                + OrganicNoise.sample(0x600DF00DL, x, z, 200.0, 3) * 55.0
-                + OrganicNoise.sample(0x13579BDFL, x, z, 80.0, 2) * 20.0;
-                
-        double angle = southClockwiseAngle(x, z);
-        double continentNoise = OrganicNoise.sample(0x51A51A51L, x, z, 150.0, 4);
-        double ridgeNoise = Math.abs(OrganicNoise.sample(0x77AA33CCL, x, z, 170.0, 3));
-        double detailNoise = OrganicNoise.sample(0x1B1A1D5L, x, z, 48.0, 3);
-        double erosionNoise = OrganicNoise.sample(0xABCD1234L, x, z, 95.0, 2);
-        double coastlineNoise = Math.abs(OrganicNoise.sample(0x77889911L, x, z, 70.0, 2));
-
-        boolean isRiver = isRiverBiome(biome);
-
-        int profileHeight;
-        if (warpedDistance < 65.0) {
-            // ILHA CENTRAL RELEVADA: Adicionado muito mais relevo (RidgeNoise) e base alta.
-            profileHeight = seaLevel + 14 + (int) Math.round(continentNoise * 18.0 + detailNoise * 10.0 + ridgeNoise * 15.0);
-        } else if (warpedDistance < 230.0) {
-            double ring = smoothBand(warpedDistance, 60.0, 145.0, 230.0);
-            int deepFloor = seaLevel - 26 + (int) Math.round(continentNoise * 4.0);
-            int shoreShelf = seaLevel - 8 + (int) Math.round(detailNoise * 2.0 + coastlineNoise * 2.0);
-            profileHeight = (int) Math.round(MathHelper.lerp(ring, deepFloor, shoreShelf));
-            if (detailNoise > 0.72 && warpedDistance > 110.0 && warpedDistance < 195.0) {
-                profileHeight = seaLevel - 1 + (int) Math.round((detailNoise - 0.72) * 18.0);
-            }
-        } else if (warpedDistance < 875.0) {
-            double coastIn = smoothRise(warpedDistance, 230.0, 360.0);
-            double coastOut = 1.0 - smoothRise(warpedDistance, 720.0, 875.0);
-            double landMass = Math.min(coastIn, coastOut);
-
-            double coastalShelf = seaLevel + MathHelper.lerp(landMass, -4.0, 8.0) + coastlineNoise * 2.0;
-            double rollingInterior = seaLevel + 12.0 + continentNoise * 12.0 + detailNoise * 8.0;
-            double alpineCore = seaLevel + 50.0 + ridgeNoise * 60.0 + continentNoise * 15.0;
-            
-            double profile = MathHelper.lerp(landMass, coastalShelf, rollingInterior);
-            profile = MathHelper.lerp(mountainMaskForBiome(biome, angle, x, z), profile, alpineCore);
-            profile -= Math.max(0.0, erosionNoise - 0.15) * 8.0;
-            profileHeight = (int) Math.round(profile);
-
-            if (landMass < 0.22) {
-                double coastalCap = seaLevel + MathHelper.lerp(landMass / 0.22, 2.0, 10.0);
-                profileHeight = Math.min(profileHeight, (int) Math.round(coastalCap));
-            }
-        } else {
-            double oceanDrop = smoothRise(warpedDistance, 875.0, 1080.0);
-            int nearShelf = seaLevel - 6 + (int) Math.round(continentNoise * 3.0 + coastlineNoise * 2.0);
-            int deepOcean = seaLevel - 30 + (int) Math.round(continentNoise * 4.0);
-            profileHeight = (int) Math.round(MathHelper.lerp(oceanDrop, nearShelf, deepOcean));
-        }
-
-        // PRESERVAÇÃO VANILLA AUMENTADA: Deixa o gerador natural do Minecraft dominar 75% da altura
-        // Isso cria aquele relevo caótico e natural do jogo, matando o efeito artificial de "tinta".
-        double preserveWeight = distance < 230.0 ? 0.40 : distance < 875.0 ? 0.75 : 0.40;
-        
-        if (isRiver) {
-            preserveWeight = 0.85; 
-        }
-
-        int blended = (int) Math.round(MathHelper.lerp(preserveWeight, profileHeight, existingTop));
-
-        if (warpedDistance >= 230.0 && warpedDistance <= 875.0 && !isRiver) {
-            blended = Math.max(blended, seaLevel + 1);
-        }
-        if (warpedDistance > 930.0) {
-            blended = Math.min(blended, seaLevel - 3);
-        }
-        return MathHelper.clamp(blended, Math.max(getMinimumY() + 4, existingTop - 36), existingTop + 86);
-    }
-
-    private double mountainMaskForBiome(RegistryEntry<Biome> biome, double angle, int x, int z) {
-        Optional<RegistryKey<Biome>> key = biome.getKey();
-        double noise = Math.abs(OrganicNoise.sample(0x4242AABBL, x, z, 120.0, 3));
-        if (matches(key, BiomeKeys.FROZEN_PEAKS, BiomeKeys.JAGGED_PEAKS, BiomeKeys.STONY_PEAKS)) {
-            return MathHelper.clamp(0.7 + noise * 0.4, 0.0, 1.0);
-        }
-        if (matches(key, BiomeKeys.WINDSWEPT_HILLS, BiomeKeys.WINDSWEPT_SAVANNA, BiomeKeys.CHERRY_GROVE)) {
-            return MathHelper.clamp(0.35 + noise * 0.35, 0.0, 0.82);
-        }
-        double polarBoost = Math.max(0.0, Math.cos(angle * FULL_TURN));
-        return MathHelper.clamp(noise * 0.2 + polarBoost * 0.15, 0.0, 0.45);
-    }
-
-    private double southClockwiseAngle(double x, double z) {
-        double radians = Math.atan2(-x, z);
-        double normalized = radians / FULL_TURN;
-        normalized %= 1.0;
-        return normalized < 0.0 ? normalized + 1.0 : normalized;
-    }
-
     private double smoothRise(double value, double start, double end) {
         return MathHelper.clamp((value - start) / Math.max(1.0, end - start), 0.0, 1.0);
-    }
-
-    private double smoothBand(double value, double start, double mid, double end) {
-        if (value <= mid) {
-            return smoothRise(value, start, mid);
-        }
-        return 1.0 - smoothRise(value, mid, end);
     }
 
     @SafeVarargs
