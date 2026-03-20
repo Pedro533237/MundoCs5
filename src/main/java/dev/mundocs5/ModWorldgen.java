@@ -1,6 +1,6 @@
 package dev.mundocs5;
 
-import dev.mundocs5.world.PizzaBiomeSource;
+import dev.mundocs5.world.CustomRingBiomeSource;
 import dev.mundocs5.world.PizzaChunkGenerator;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
@@ -19,10 +19,10 @@ public final class ModWorldgen {
             return;
         }
 
-        Registry.register(Registries.BIOME_SOURCE, MundoCs5Mod.id("pizza"), PizzaBiomeSource.CODEC);
+        Registry.register(Registries.BIOME_SOURCE, MundoCs5Mod.id("custom_ring"), CustomRingBiomeSource.CODEC);
         Registry.register(Registries.CHUNK_GENERATOR, MundoCs5Mod.id("pizza_generator"), PizzaChunkGenerator.CODEC);
         registered = true;
-        LOGGER.info("Registered biome source {}", MundoCs5Mod.id("pizza"));
+        LOGGER.info("Registered biome source {}", MundoCs5Mod.id("custom_ring"));
         LOGGER.info("Registered chunk generator {}", MundoCs5Mod.id("pizza_generator"));
     }
 }

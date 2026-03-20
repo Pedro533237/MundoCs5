@@ -5,67 +5,78 @@
       "generator": {
         "type": "mundocs5:pizza_generator",
         "biome_source": {
-          "type": "mundocs5:pizza",
+          "type": "mundocs5:custom_ring",
           "vanilla": {
             "type": "minecraft:multi_noise",
             "preset": "minecraft:overworld"
           },
-          "layout_seed": 886433821954,
-          "land_config": {
-            "center_biome": "minecraft:mushroom_fields",
-            "center_radius": 54,
-            "inner_ocean_end": 234,
-            "main_ring_end": 864,
-            "fallback_start": 2048,
-            "warm_biomes": {
-              "badlands_biome": "minecraft:badlands",
-              "wooded_badlands_biome": "minecraft:wooded_badlands",
-              "badlands_plateau_biome": "minecraft:badlands",
-              "eroded_badlands_biome": "minecraft:eroded_badlands",
-              "savanna_biome": "minecraft:savanna",
-              "savanna_plateau_biome": "minecraft:savanna_plateau",
-              "windswept_savanna_biome": "minecraft:windswept_savanna",
-              "desert_biome": "minecraft:desert",
-              "jungle_biome": "minecraft:jungle",
-              "sparse_jungle_biome": "minecraft:sparse_jungle",
-              "bamboo_jungle_biome": "minecraft:bamboo_jungle"
+          "config": {
+            "center_island_radius": 70,
+            "inner_ocean_radius": 300,
+            "outer_ocean_start": 2000,
+            "vanilla_blend_start": 3000,
+            "center_island_biome": "minecraft:mushroom_fields",
+            "ocean_biome": "minecraft:deep_ocean",
+            "sectors": {
+              "east_biomes": [
+                "minecraft:windswept_hills",
+                "minecraft:stony_peaks"
+              ],
+              "south_east_biomes": [
+                "minecraft:jungle",
+                "minecraft:bamboo_jungle"
+              ],
+              "south_biomes": [
+                "minecraft:desert",
+                "minecraft:badlands"
+              ],
+              "south_west_biomes": [
+                "minecraft:plains",
+                "minecraft:meadow"
+              ],
+              "west_biomes": [
+                "minecraft:taiga",
+                "minecraft:old_growth_pine_taiga"
+              ],
+              "north_west_biomes": [
+                "minecraft:dark_forest",
+                "minecraft:forest",
+                "minecraft:flower_forest"
+              ],
+              "north_biomes": [
+                "minecraft:snowy_plains",
+                "minecraft:snowy_taiga",
+                "minecraft:ice_spikes",
+                "minecraft:frozen_peaks"
+              ]
             },
-            "temperate_biomes": {
-              "windswept_hills_biome": "minecraft:windswept_hills",
-              "stony_peaks_biome": "minecraft:stony_peaks",
-              "cherry_grove_biome": "minecraft:cherry_grove",
-              "forest_biome": "minecraft:forest",
-              "flower_forest_biome": "minecraft:flower_forest",
-              "plains_biome": "minecraft:plains",
-              "taiga_biome": "minecraft:taiga",
-              "old_growth_taiga_biome": "minecraft:old_growth_pine_taiga",
-              "pale_garden_biome": "minecraft:pale_garden",
-              "dark_forest_biome": "minecraft:dark_forest"
+            "angle_warp": {
+              "seed": 3405697037,
+              "scale": 320.0,
+              "strength": 90.0
             },
-            "cold_biomes": {
-              "snowy_taiga_biome": "minecraft:snowy_taiga",
-              "snowy_plains_biome": "minecraft:snowy_plains",
-              "frozen_peaks_biome": "minecraft:frozen_peaks",
-              "jagged_peaks_biome": "minecraft:jagged_peaks"
-            },
-            "wet_biomes": {
-              "swamp_biome": "minecraft:swamp",
-              "mangrove_swamp_biome": "minecraft:mangrove_swamp"
+            "secondary_selection_noise": {
+              "seed": 78193085935,
+              "scale": 220.0,
+              "strength": 1.0
             }
-          },
-          "ocean_config": {
-            "temperate_ocean_biome": "minecraft:ocean",
-            "cold_ocean_biome": "minecraft:cold_ocean",
-            "frozen_ocean_biome": "minecraft:frozen_ocean",
-            "warm_ocean_biome": "minecraft:warm_ocean",
-            "lukewarm_ocean_biome": "minecraft:lukewarm_ocean",
-            "beach_biome": "minecraft:beach",
-            "snowy_beach_biome": "minecraft:snowy_beach",
-            "river_biome": "minecraft:river",
-            "frozen_river_biome": "minecraft:frozen_river"
           }
         },
-        "settings": "minecraft:overworld"
+        "settings": "minecraft:overworld",
+        "terrain": {
+          "sea_level": 62,
+          "center_island_radius": 70,
+          "inner_ocean_radius": 300,
+          "outer_ring_radius": 2000,
+          "vanilla_blend_radius": 3000,
+          "inner_ocean_depth": 12,
+          "inner_ocean_variance": 10,
+          "outer_ocean_depth": 18,
+          "outer_ocean_variance": 12,
+          "coast_blend_width": 128.0,
+          "ring_lift": 10,
+          "max_ring_rise": 110
+        }
       }
     },
     "minecraft:the_nether": {
