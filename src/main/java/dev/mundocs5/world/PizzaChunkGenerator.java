@@ -121,7 +121,6 @@ public class PizzaChunkGenerator extends ChunkGenerator {
         int startZ = chunk.getPos().getStartZ();
 
         int[][] targetHeights = new int[16][16];
-        RegistryEntry<Biome>[][] biomes = new RegistryEntry[16][16];
 
         for (int localX = 0; localX < 16; localX++) {
             for (int localZ = 0; localZ < 16; localZ++) {
@@ -131,43 +130,41 @@ public class PizzaChunkGenerator extends ChunkGenerator {
 
                 if (distance > 2048.0) {
                     targetHeights[localX][localZ] = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE_WG, localX, localZ);
-                    biomes[localX][localZ] = chunk.getBiomeForNoiseGen(localX >> 2, seaLevel >> 2, localZ >> 2);
                     continue;
                 }
 
                 int existingTop = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE_WG, localX, localZ);
                 RegistryEntry<Biome> biome = chunk.getBiomeForNoiseGen(localX >> 2, Math.max(minY, existingTop) >> 2, localZ >> 2);
-                biomes[localX][localZ] = biome;
                 targetHeights[localX][localZ] = sampleSmoothedTerrainHeight(worldX, worldZ, seaLevel, existingTop, biome);
             }
         }
+
+        // Deixamos a base pronta com Stone e Deepslate. O Minecraft aplicará Grama, Areia e Terracotta depois automaticamente!
+        BlockState stone = Blocks.STONE.getDefaultState();
+        BlockState deepslate = Blocks.DEEPSLATE.getDefaultState();
+        BlockState water = Blocks.WATER.getDefaultState();
+        BlockState air = Blocks.AIR.getDefaultState();
 
         for (int localX = 0; localX < 16; localX++) {
             for (int localZ = 0; localZ < 16; localZ++) {
                 int worldX = startX + localX;
                 int worldZ = startZ + localZ;
                 int targetHeight = targetHeights[localX][localZ];
-                RegistryEntry<Biome> biome = biomes[localX][localZ];
-                BlockState topBlock = surfaceBlockFor(biome, targetHeight, seaLevel);
-                BlockState fillerBlock = fillerBlockFor(biome);
 
                 for (int y = minY; y <= maxY; y++) {
                     mutable.set(worldX, y, worldZ);
                     if (y > targetHeight) {
                         if (y <= seaLevel) {
-                            chunk.setBlockState(mutable, Blocks.WATER.getDefaultState(), 0);
+                            chunk.setBlockState(mutable, water, 0);
                         } else {
-                            chunk.setBlockState(mutable, Blocks.AIR.getDefaultState(), 0);
+                            chunk.setBlockState(mutable, air, 0);
                         }
-                        continue;
-                    }
-
-                    if (y == targetHeight) {
-                        chunk.setBlockState(mutable, topBlock, 0);
-                    } else if (y >= targetHeight - 3) {
-                        chunk.setBlockState(mutable, fillerBlock, 0);
                     } else {
-                        chunk.setBlockState(mutable, stoneFor(biome, y, targetHeight), 0);
+                        if (y < 0) {
+                            chunk.setBlockState(mutable, deepslate, 0);
+                        } else {
+                            chunk.setBlockState(mutable, stone, 0);
+                        }
                     }
                 }
             }
@@ -188,6 +185,10 @@ public class PizzaChunkGenerator extends ChunkGenerator {
         return (int) Math.round((center * 4.0 + north + south + west + east + (northWest + northEast + southWest + southEast) * 0.5) / 10.0);
     }
 
+    private boolean isRiverBiome(RegistryEntry<Biome> biome) {
+        return matches(biome.getKey(), BiomeKeys.RIVER, BiomeKeys.FROZEN_RIVER);
+    }
+
     private int sampleTerrainHeight(int x, int z, int seaLevel, int existingTop, RegistryEntry<Biome> biome) {
         double distance = Math.sqrt((double) x * x + (double) z * z);
         double warpedDistance = distance
@@ -201,6 +202,8 @@ public class PizzaChunkGenerator extends ChunkGenerator {
         double coastlineNoise = Math.abs(OrganicNoise.sample(0x77889911L, x, z, 70.0, 2));
         double macroReliefNoise = Math.abs(OrganicNoise.sample(0x60066006L, x, z, 280.0, 3));
         double badlandsSpireNoise = Math.abs(OrganicNoise.sample(0xBADA551AL, x, z, 82.0, 3));
+
+        boolean isRiver = isRiverBiome(biome);
 
         int profileHeight;
         if (warpedDistance < 60.0) {
@@ -245,23 +248,23 @@ public class PizzaChunkGenerator extends ChunkGenerator {
         }
 
         double preserveWeight = distance < 230.0 ? 0.20 : distance < 875.0 ? 0.52 : 0.30;
+        
+        // CORREÇÃO DOS RIOS: Valoriza muito mais a altura dos rios cavados pelo Vanilla.
+        if (isRiver) {
+            preserveWeight = 0.85; 
+        }
+
         int blended = (int) Math.round(MathHelper.lerp(preserveWeight, profileHeight, existingTop));
 
-        if (warpedDistance >= 230.0 && warpedDistance <= 875.0) {
+        // CORREÇÃO DA TERRA: Impede de forçar rios para cima, permitindo que eles cruzem a ilha perfeitamente.
+        if (warpedDistance >= 230.0 && warpedDistance <= 875.0 && !isRiver) {
             blended = Math.max(blended, seaLevel + 1);
         }
+        
         if (warpedDistance > 930.0) {
             blended = Math.min(blended, seaLevel - 3);
         }
         return MathHelper.clamp(blended, Math.max(getMinimumY() + 4, existingTop - 36), existingTop + 86);
-    }
-
-    private BlockState stoneFor(RegistryEntry<Biome> biome, int y, int terrainHeight) {
-        Optional<RegistryKey<Biome>> key = biome.getKey();
-        if (matches(key, BiomeKeys.BADLANDS, BiomeKeys.WOODED_BADLANDS, BiomeKeys.ERODED_BADLANDS)) {
-            return y > terrainHeight - 10 ? Blocks.TERRACOTTA.getDefaultState() : Blocks.STONE.getDefaultState();
-        }
-        return Blocks.STONE.getDefaultState();
     }
 
     private double mountainMaskForBiome(RegistryEntry<Biome> biome, double angle, int x, int z) {
@@ -320,67 +323,6 @@ public class PizzaChunkGenerator extends ChunkGenerator {
             return smoothRise(value, start, mid);
         }
         return 1.0 - smoothRise(value, mid, end);
-    }
-
-    private BlockState surfaceBlockFor(RegistryEntry<Biome> biome, int terrainHeight, int seaLevel) {
-        Optional<RegistryKey<Biome>> key = biome.getKey();
-        if (terrainHeight <= seaLevel) {
-            if (hasWetCoastline(key)) {
-                return wetCoastSurfaceBlock(key);
-            }
-            return Blocks.SAND.getDefaultState();
-        }
-        if (matches(key, BiomeKeys.BADLANDS, BiomeKeys.WOODED_BADLANDS, BiomeKeys.ERODED_BADLANDS)) {
-            return Blocks.RED_SAND.getDefaultState();
-        }
-        if (matches(key, BiomeKeys.DESERT, BiomeKeys.BEACH)) {
-            return Blocks.SAND.getDefaultState();
-        }
-        if (matches(key, BiomeKeys.SNOWY_TAIGA, BiomeKeys.SNOWY_PLAINS, BiomeKeys.FROZEN_PEAKS, BiomeKeys.JAGGED_PEAKS, BiomeKeys.SNOWY_BEACH, BiomeKeys.FROZEN_RIVER)) {
-            return Blocks.SNOW_BLOCK.getDefaultState();
-        }
-        if (matches(key, BiomeKeys.STONY_PEAKS, BiomeKeys.WINDSWEPT_HILLS)) {
-            return Blocks.STONE.getDefaultState();
-        }
-        if (matches(key, BiomeKeys.MUSHROOM_FIELDS)) {
-            return Blocks.MYCELIUM.getDefaultState();
-        }
-        return Blocks.GRASS_BLOCK.getDefaultState();
-    }
-
-    private BlockState fillerBlockFor(RegistryEntry<Biome> biome) {
-        Optional<RegistryKey<Biome>> key = biome.getKey();
-        if (hasWetCoastline(key)) {
-            return matches(key, BiomeKeys.MANGROVE_SWAMP) ? Blocks.MUD.getDefaultState() : Blocks.DIRT.getDefaultState();
-        }
-        if (matches(key, BiomeKeys.BADLANDS, BiomeKeys.WOODED_BADLANDS, BiomeKeys.ERODED_BADLANDS)) {
-            return Blocks.RED_SAND.getDefaultState();
-        }
-        if (matches(key, BiomeKeys.DESERT, BiomeKeys.BEACH)) {
-            return Blocks.SAND.getDefaultState();
-        }
-        if (matches(key, BiomeKeys.MUSHROOM_FIELDS)) {
-            return Blocks.DIRT.getDefaultState();
-        }
-        return Blocks.DIRT.getDefaultState();
-    }
-
-    private boolean hasWetCoastline(Optional<RegistryKey<Biome>> key) {
-        return matches(key,
-                BiomeKeys.JUNGLE,
-                BiomeKeys.SPARSE_JUNGLE,
-                BiomeKeys.BAMBOO_JUNGLE,
-                BiomeKeys.SWAMP,
-                BiomeKeys.MANGROVE_SWAMP,
-                BiomeKeys.DARK_FOREST
-        );
-    }
-
-    private BlockState wetCoastSurfaceBlock(Optional<RegistryKey<Biome>> key) {
-        if (matches(key, BiomeKeys.MANGROVE_SWAMP)) {
-            return Blocks.MUD.getDefaultState();
-        }
-        return Blocks.GRASS_BLOCK.getDefaultState();
     }
 
     @SafeVarargs
