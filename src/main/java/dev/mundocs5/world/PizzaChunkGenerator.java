@@ -29,7 +29,7 @@ import net.minecraft.world.gen.noise.NoiseConfig;
 public class PizzaChunkGenerator extends ChunkGenerator {
     private static final double FULL_TURN = Math.PI * 2.0;
     private static final double CENTER_ISLAND_RADIUS = 34.0;
-    private static final double LAGOON_RADIUS = 185.0;
+    private static final double CENTER_FLATTEN_BLEND = 44.0;
     private static final Brush[] LAND_STROKES = new Brush[] {
             new Brush(-400.0, -120.0, 280.0, 340.0, 1.05),
             new Brush(-250.0, -420.0, 250.0, 260.0, 0.92),
@@ -166,47 +166,14 @@ public class PizzaChunkGenerator extends ChunkGenerator {
         int seaLevel = getSeaLevel();
         int localX = x - centerX;
         int localZ = z - centerZ;
-        double angle = angleFor(localX, localZ);
-        double warpedX = localX + OrganicNoise.sample(0x1212L, localX, localZ, 240.0, 2) * 34.0;
-        double warpedZ = localZ + OrganicNoise.sample(0x3434L, localX, localZ, 240.0, 2) * 34.0;
-        double distance = Math.sqrt(warpedX * warpedX + warpedZ * warpedZ);
-        double landMask = paintedLandMask(warpedX, warpedZ);
-        double lagoonMask = lagoonMask(warpedX, warpedZ, angle, distance);
-        double edgeOceanFalloff = circularFalloff(distance, 730.0, 960.0);
-        double centerLakeFalloff = 1.0 - circularFalloff(distance, CENTER_ISLAND_RADIUS + 35.0, LAGOON_RADIUS + 8.0);
-        double heightBias = paintedHeightBias(warpedX, warpedZ) + OrganicNoise.sample(0x5656L, localX, localZ, 170.0, 3) * 7.0 + Math.abs(OrganicNoise.sample(0x7878L, localX, localZ, 84.0, 2)) * 5.0;
+        double distance = Math.sqrt((double) localX * localX + (double) localZ * localZ);
+        if (distance > CENTER_FLATTEN_BLEND) return vanillaHeight;
 
-        if (distance <= CENTER_ISLAND_RADIUS) {
-            return seaLevel + 20 + (int) (Math.abs(OrganicNoise.sample(0x9999L, localX, localZ, 50.0, 3)) * 12.0);
-        }
+        if (!matches(biome.getKey(), BiomeKeys.MUSHROOM_FIELDS)) return vanillaHeight;
 
-        if (lagoonMask + centerLakeFalloff * 0.42 > 0.18) {
-            int lagoonFloor = seaLevel - 28 + (int) (OrganicNoise.sample(0xABABL, localX, localZ, 90.0, 2) * 5.0);
-            return Math.min(seaLevel - 5, lagoonFloor);
-        }
-
-        double rise = MathHelper.clamp(landMask, 0.0, 1.0);
-        int landHeight = (int) Math.round(MathHelper.lerp(0.58 + rise * 0.18, vanillaHeight, seaLevel + 14.0 + rise * 24.0 + heightBias));
-        landHeight -= (int) Math.round((1.0 - edgeOceanFalloff) * 14.0);
-        if (isMountainBiome(biome)) landHeight += 16 + (int) (Math.abs(OrganicNoise.sample(0xCDCDL, localX, localZ, 88.0, 3)) * 28.0);
-        if (isDryBiome(biome)) landHeight += 5;
-        if (isWetBiome(biome)) landHeight -= 8;
-        if (!isRiverBiome(biome) && landHeight < seaLevel + 2) landHeight = seaLevel + 2;
-
-        double shoreBand = Math.max(landMask, -0.65);
-        int oceanHeight;
-        if (shoreBand > -0.35) {
-            double shoreRise = 1.0 - MathHelper.clamp((-shoreBand - 0.02) / 0.33, 0.0, 1.0);
-            int shelf = seaLevel - 4 - (int) Math.round((1.0 - shoreRise) * 8.0) + (int) (OrganicNoise.sample(0xEFEFL, localX, localZ, 130.0, 2) * 3.0);
-            oceanHeight = Math.min(seaLevel - 2, shelf);
-        } else {
-            int deepOcean = seaLevel - 22 + (int) (OrganicNoise.sample(0xAAAA5555L, localX, localZ, 180.0, 2) * 8.0);
-            deepOcean -= (int) Math.round((1.0 - edgeOceanFalloff) * 22.0);
-            oceanHeight = Math.min(seaLevel - 8, Math.min(vanillaHeight, deepOcean));
-        }
-
-        double coastBlend = MathHelper.clamp((landMask + 0.25) / 0.5, 0.0, 1.0);
-        return (int) Math.round(MathHelper.lerp(coastBlend, oceanHeight, landHeight));
+        int lowMushroom = seaLevel + 1 + (int) Math.round(Math.abs(OrganicNoise.sample(0xA11CE5L, localX, localZ, 38.0, 2)) * 2.0);
+        double blend = MathHelper.clamp((distance - CENTER_ISLAND_RADIUS) / Math.max(1.0, CENTER_FLATTEN_BLEND - CENTER_ISLAND_RADIUS), 0.0, 1.0);
+        return (int) Math.round(MathHelper.lerp(blend, lowMushroom, vanillaHeight));
     }
 
     private double paintedLandMask(double x, double z) {
@@ -259,6 +226,7 @@ public class PizzaChunkGenerator extends ChunkGenerator {
                 int vanillaHeight = chunk.sampleHeightmap(Heightmap.Type.OCEAN_FLOOR_WG, localX, localZ);
                 RegistryEntry<Biome> biome = chunk.getBiomeForNoiseGen(localX >> 2, vanillaHeight >> 2, localZ >> 2);
                 int targetHeight = calculateTargetHeight(worldX, worldZ, vanillaHeight, biome);
+                if (targetHeight == vanillaHeight) continue;
 
                 for (int y = maxY; y >= minY; y--) {
                     mutable.set(worldX, y, worldZ);
