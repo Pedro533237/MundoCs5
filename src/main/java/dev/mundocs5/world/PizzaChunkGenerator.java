@@ -5,9 +5,9 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
-import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
@@ -29,7 +29,7 @@ import net.minecraft.world.gen.noise.NoiseConfig;
 public class PizzaChunkGenerator extends ChunkGenerator {
     private static final double FULL_TURN = Math.PI * 2.0;
     private static final double CENTER_ISLAND_RADIUS = 34.0;
-    private static final double LAGOON_RADIUS = 185.0;
+    private static final double CENTER_FLATTEN_BLEND = 44.0;
     private static final Brush[] LAND_STROKES = new Brush[] {
             new Brush(-400.0, -120.0, 280.0, 340.0, 1.05),
             new Brush(-250.0, -420.0, 250.0, 260.0, 0.92),
@@ -63,17 +63,27 @@ public class PizzaChunkGenerator extends ChunkGenerator {
 
     public static final MapCodec<PizzaChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             PizzaBiomeSource.CODEC.fieldOf("biome_source").forGetter(generator -> (PizzaBiomeSource) generator.getBiomeSource()),
-            ChunkGeneratorSettings.REGISTRY_CODEC.fieldOf("settings").forGetter(PizzaChunkGenerator::settings)
+            ChunkGeneratorSettings.REGISTRY_CODEC.fieldOf("settings").forGetter(PizzaChunkGenerator::settings),
+            com.mojang.serialization.Codec.INT.optionalFieldOf("center_x", 0).forGetter(PizzaChunkGenerator::centerX),
+            com.mojang.serialization.Codec.INT.optionalFieldOf("center_z", 0).forGetter(PizzaChunkGenerator::centerZ)
     ).apply(instance, PizzaChunkGenerator::new));
 
     private final PizzaBiomeSource biomeSource;
     private final RegistryEntry<ChunkGeneratorSettings> settings;
     private final NoiseChunkGenerator delegate;
+    private final int centerX;
+    private final int centerZ;
 
     public PizzaChunkGenerator(PizzaBiomeSource biomeSource, RegistryEntry<ChunkGeneratorSettings> settings) {
+        this(biomeSource, settings, 0, 0);
+    }
+
+    public PizzaChunkGenerator(PizzaBiomeSource biomeSource, RegistryEntry<ChunkGeneratorSettings> settings, int centerX, int centerZ) {
         super(biomeSource);
         this.biomeSource = biomeSource;
         this.settings = settings;
+        this.centerX = centerX;
+        this.centerZ = centerZ;
         this.delegate = new NoiseChunkGenerator(biomeSource, settings);
     }
 
@@ -81,6 +91,8 @@ public class PizzaChunkGenerator extends ChunkGenerator {
     protected MapCodec<? extends ChunkGenerator> getCodec() { return CODEC; }
 
     public RegistryEntry<ChunkGeneratorSettings> settings() { return settings; }
+    public int centerX() { return centerX; }
+    public int centerZ() { return centerZ; }
 
     @Override
     public int getHeight(int x, int z, Heightmap.Type heightmap, HeightLimitView world, NoiseConfig noiseConfig) {
@@ -152,42 +164,16 @@ public class PizzaChunkGenerator extends ChunkGenerator {
 
     private int calculateTargetHeight(int x, int z, int vanillaHeight, RegistryEntry<Biome> biome) {
         int seaLevel = getSeaLevel();
-        double angle = angleFor(x, z);
-        double warpedX = x + OrganicNoise.sample(0x1212L, x, z, 240.0, 2) * 34.0;
-        double warpedZ = z + OrganicNoise.sample(0x3434L, x, z, 240.0, 2) * 34.0;
-        double distance = Math.sqrt(warpedX * warpedX + warpedZ * warpedZ);
-        double landMask = paintedLandMask(warpedX, warpedZ);
-        double lagoonMask = lagoonMask(warpedX, warpedZ, angle, distance);
-        double heightBias = paintedHeightBias(warpedX, warpedZ) + OrganicNoise.sample(0x5656L, x, z, 170.0, 3) * 7.0 + Math.abs(OrganicNoise.sample(0x7878L, x, z, 84.0, 2)) * 5.0;
+        int localX = x - centerX;
+        int localZ = z - centerZ;
+        double distance = Math.sqrt((double) localX * localX + (double) localZ * localZ);
+        if (distance > CENTER_FLATTEN_BLEND) return vanillaHeight;
 
-        if (distance <= CENTER_ISLAND_RADIUS) {
-            return seaLevel + 20 + (int) (Math.abs(OrganicNoise.sample(0x9999L, x, z, 50.0, 3)) * 12.0);
-        }
+        if (!matches(biome.getKey(), BiomeKeys.MUSHROOM_FIELDS)) return vanillaHeight;
 
-        if (lagoonMask > 0.18) {
-            int lagoonFloor = seaLevel - 28 + (int) (OrganicNoise.sample(0xABABL, x, z, 90.0, 2) * 5.0);
-            return Math.min(seaLevel - 5, lagoonFloor);
-        }
-
-        if (landMask > 0.0) {
-            double rise = MathHelper.clamp(landMask, 0.0, 1.0);
-            int shaped = (int) Math.round(MathHelper.lerp(0.58 + rise * 0.18, vanillaHeight, seaLevel + 14.0 + rise * 24.0 + heightBias));
-            if (isMountainBiome(biome)) shaped += 16 + (int) (Math.abs(OrganicNoise.sample(0xCDCDL, x, z, 88.0, 3)) * 28.0);
-            if (isDryBiome(biome)) shaped += 5;
-            if (isWetBiome(biome)) shaped -= 8;
-            if (!isRiverBiome(biome) && shaped < seaLevel + 2) shaped = seaLevel + 2;
-            return shaped;
-        }
-
-        double shoreBand = Math.max(landMask, -0.55);
-        if (shoreBand > -0.30) {
-            double shoreRise = 1.0 - MathHelper.clamp((-shoreBand - 0.02) / 0.28, 0.0, 1.0);
-            int shelf = seaLevel - 4 - (int) Math.round((1.0 - shoreRise) * 8.0) + (int) (OrganicNoise.sample(0xEFEFL, x, z, 130.0, 2) * 3.0);
-            return Math.min(seaLevel - 2, shelf);
-        }
-
-        int deepOcean = seaLevel - 22 + (int) (OrganicNoise.sample(0xAAAA5555L, x, z, 180.0, 2) * 8.0);
-        return Math.min(seaLevel - 8, Math.min(vanillaHeight, deepOcean));
+        int lowMushroom = seaLevel + 1 + (int) Math.round(Math.abs(OrganicNoise.sample(0xA11CE5L, localX, localZ, 38.0, 2)) * 2.0);
+        double blend = MathHelper.clamp((distance - CENTER_ISLAND_RADIUS) / Math.max(1.0, CENTER_FLATTEN_BLEND - CENTER_ISLAND_RADIUS), 0.0, 1.0);
+        return (int) Math.round(MathHelper.lerp(blend, lowMushroom, vanillaHeight));
     }
 
     private double paintedLandMask(double x, double z) {
@@ -240,6 +226,7 @@ public class PizzaChunkGenerator extends ChunkGenerator {
                 int vanillaHeight = chunk.sampleHeightmap(Heightmap.Type.OCEAN_FLOOR_WG, localX, localZ);
                 RegistryEntry<Biome> biome = chunk.getBiomeForNoiseGen(localX >> 2, vanillaHeight >> 2, localZ >> 2);
                 int targetHeight = calculateTargetHeight(worldX, worldZ, vanillaHeight, biome);
+                if (targetHeight == vanillaHeight) continue;
 
                 for (int y = maxY; y >= minY; y--) {
                     mutable.set(worldX, y, worldZ);
@@ -307,6 +294,13 @@ public class PizzaChunkGenerator extends ChunkGenerator {
         return wrapped - 0.5;
     }
 
+    private static double circularFalloff(double distance, double start, double end) {
+        if (distance <= start) return 1.0;
+        if (distance >= end) return 0.0;
+        double t = (distance - start) / Math.max(1.0, end - start);
+        return 1.0 - (t * t * (3.0 - 2.0 * t));
+    }
+
     private record Brush(double centerX, double centerZ, double radiusX, double radiusZ, double strength) {
         private double sample(double x, double z) {
             double dx = (x - centerX) / Math.max(1.0, radiusX);
@@ -323,4 +317,5 @@ public class PizzaChunkGenerator extends ChunkGenerator {
             return Math.max(0.0, mask) * height;
         }
     }
+
 }
