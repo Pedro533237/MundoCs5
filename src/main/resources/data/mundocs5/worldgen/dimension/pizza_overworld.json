@@ -2,6 +2,8 @@
   "type": "minecraft:overworld",
   "generator": {
     "type": "mundocs5:pizza_generator",
+    "center_x": 0,
+    "center_z": 0,
     "biome_source": {
       "type": "mundocs5:pizza",
       "vanilla": {
@@ -9,6 +11,8 @@
         "preset": "minecraft:overworld"
       },
       "layout_seed": 886433821954,
+      "center_x": 0,
+      "center_z": 0,
       "land_config": {
         "center_biome": "minecraft:mushroom_fields",
         "center_radius": 54,

@@ -5,9 +5,9 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
-import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
@@ -63,17 +63,28 @@ public class PizzaChunkGenerator extends ChunkGenerator {
 
     public static final MapCodec<PizzaChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             PizzaBiomeSource.CODEC.fieldOf("biome_source").forGetter(generator -> (PizzaBiomeSource) generator.getBiomeSource()),
-            ChunkGeneratorSettings.REGISTRY_CODEC.fieldOf("settings").forGetter(PizzaChunkGenerator::settings)
+            ChunkGeneratorSettings.REGISTRY_CODEC.fieldOf("settings").forGetter(PizzaChunkGenerator::settings),
+            com.mojang.serialization.Codec.INT.optionalFieldOf("center_x", 0).forGetter(PizzaChunkGenerator::centerX),
+            com.mojang.serialization.Codec.INT.optionalFieldOf("center_z", 0).forGetter(PizzaChunkGenerator::centerZ)
     ).apply(instance, PizzaChunkGenerator::new));
 
     private final PizzaBiomeSource biomeSource;
     private final RegistryEntry<ChunkGeneratorSettings> settings;
     private final NoiseChunkGenerator delegate;
+    private final int centerX;
+    private final int centerZ;
+    private final ThreadLocal<ColumnCache> columnCache = ThreadLocal.withInitial(ColumnCache::new);
 
     public PizzaChunkGenerator(PizzaBiomeSource biomeSource, RegistryEntry<ChunkGeneratorSettings> settings) {
+        this(biomeSource, settings, 0, 0);
+    }
+
+    public PizzaChunkGenerator(PizzaBiomeSource biomeSource, RegistryEntry<ChunkGeneratorSettings> settings, int centerX, int centerZ) {
         super(biomeSource);
         this.biomeSource = biomeSource;
         this.settings = settings;
+        this.centerX = centerX;
+        this.centerZ = centerZ;
         this.delegate = new NoiseChunkGenerator(biomeSource, settings);
     }
 
@@ -81,19 +92,21 @@ public class PizzaChunkGenerator extends ChunkGenerator {
     protected MapCodec<? extends ChunkGenerator> getCodec() { return CODEC; }
 
     public RegistryEntry<ChunkGeneratorSettings> settings() { return settings; }
+    public int centerX() { return centerX; }
+    public int centerZ() { return centerZ; }
 
     @Override
     public int getHeight(int x, int z, Heightmap.Type heightmap, HeightLimitView world, NoiseConfig noiseConfig) {
         int vanillaHeight = delegate.getHeight(x, z, heightmap, world, noiseConfig);
         RegistryEntry<Biome> biome = biomeSource.getBiome(x >> 2, vanillaHeight >> 2, z >> 2, noiseConfig.getMultiNoiseSampler());
-        return calculateTargetHeight(x, z, vanillaHeight, biome);
+        return calculateTargetHeightCached(x, z, vanillaHeight, biome);
     }
 
     @Override
     public VerticalBlockSample getColumnSample(int x, int z, HeightLimitView world, NoiseConfig noiseConfig) {
         int vanillaHeight = delegate.getHeight(x, z, Heightmap.Type.OCEAN_FLOOR_WG, world, noiseConfig);
         RegistryEntry<Biome> biome = biomeSource.getBiome(x >> 2, vanillaHeight >> 2, z >> 2, noiseConfig.getMultiNoiseSampler());
-        int targetY = calculateTargetHeight(x, z, vanillaHeight, biome);
+        int targetY = calculateTargetHeightCached(x, z, vanillaHeight, biome);
 
         int bottomY = world.getBottomY();
         BlockState[] states = new BlockState[world.getHeight()];
@@ -152,27 +165,32 @@ public class PizzaChunkGenerator extends ChunkGenerator {
 
     private int calculateTargetHeight(int x, int z, int vanillaHeight, RegistryEntry<Biome> biome) {
         int seaLevel = getSeaLevel();
-        double angle = angleFor(x, z);
-        double warpedX = x + OrganicNoise.sample(0x1212L, x, z, 240.0, 2) * 34.0;
-        double warpedZ = z + OrganicNoise.sample(0x3434L, x, z, 240.0, 2) * 34.0;
+        int localX = x - centerX;
+        int localZ = z - centerZ;
+        double angle = angleFor(localX, localZ);
+        double warpedX = localX + OrganicNoise.sample(0x1212L, localX, localZ, 240.0, 2) * 34.0;
+        double warpedZ = localZ + OrganicNoise.sample(0x3434L, localX, localZ, 240.0, 2) * 34.0;
         double distance = Math.sqrt(warpedX * warpedX + warpedZ * warpedZ);
         double landMask = paintedLandMask(warpedX, warpedZ);
         double lagoonMask = lagoonMask(warpedX, warpedZ, angle, distance);
-        double heightBias = paintedHeightBias(warpedX, warpedZ) + OrganicNoise.sample(0x5656L, x, z, 170.0, 3) * 7.0 + Math.abs(OrganicNoise.sample(0x7878L, x, z, 84.0, 2)) * 5.0;
+        double edgeOceanFalloff = circularFalloff(distance, 730.0, 960.0);
+        double centerLakeFalloff = 1.0 - circularFalloff(distance, CENTER_ISLAND_RADIUS + 35.0, LAGOON_RADIUS + 8.0);
+        double heightBias = paintedHeightBias(warpedX, warpedZ) + OrganicNoise.sample(0x5656L, localX, localZ, 170.0, 3) * 7.0 + Math.abs(OrganicNoise.sample(0x7878L, localX, localZ, 84.0, 2)) * 5.0;
 
         if (distance <= CENTER_ISLAND_RADIUS) {
-            return seaLevel + 20 + (int) (Math.abs(OrganicNoise.sample(0x9999L, x, z, 50.0, 3)) * 12.0);
+            return seaLevel + 20 + (int) (Math.abs(OrganicNoise.sample(0x9999L, localX, localZ, 50.0, 3)) * 12.0);
         }
 
-        if (lagoonMask > 0.18) {
-            int lagoonFloor = seaLevel - 28 + (int) (OrganicNoise.sample(0xABABL, x, z, 90.0, 2) * 5.0);
+        if (lagoonMask + centerLakeFalloff * 0.42 > 0.18) {
+            int lagoonFloor = seaLevel - 28 + (int) (OrganicNoise.sample(0xABABL, localX, localZ, 90.0, 2) * 5.0);
             return Math.min(seaLevel - 5, lagoonFloor);
         }
 
         if (landMask > 0.0) {
             double rise = MathHelper.clamp(landMask, 0.0, 1.0);
             int shaped = (int) Math.round(MathHelper.lerp(0.58 + rise * 0.18, vanillaHeight, seaLevel + 14.0 + rise * 24.0 + heightBias));
-            if (isMountainBiome(biome)) shaped += 16 + (int) (Math.abs(OrganicNoise.sample(0xCDCDL, x, z, 88.0, 3)) * 28.0);
+            shaped -= (int) Math.round((1.0 - edgeOceanFalloff) * 14.0);
+            if (isMountainBiome(biome)) shaped += 16 + (int) (Math.abs(OrganicNoise.sample(0xCDCDL, localX, localZ, 88.0, 3)) * 28.0);
             if (isDryBiome(biome)) shaped += 5;
             if (isWetBiome(biome)) shaped -= 8;
             if (!isRiverBiome(biome) && shaped < seaLevel + 2) shaped = seaLevel + 2;
@@ -182,12 +200,18 @@ public class PizzaChunkGenerator extends ChunkGenerator {
         double shoreBand = Math.max(landMask, -0.55);
         if (shoreBand > -0.30) {
             double shoreRise = 1.0 - MathHelper.clamp((-shoreBand - 0.02) / 0.28, 0.0, 1.0);
-            int shelf = seaLevel - 4 - (int) Math.round((1.0 - shoreRise) * 8.0) + (int) (OrganicNoise.sample(0xEFEFL, x, z, 130.0, 2) * 3.0);
+            int shelf = seaLevel - 4 - (int) Math.round((1.0 - shoreRise) * 8.0) + (int) (OrganicNoise.sample(0xEFEFL, localX, localZ, 130.0, 2) * 3.0);
             return Math.min(seaLevel - 2, shelf);
         }
 
-        int deepOcean = seaLevel - 22 + (int) (OrganicNoise.sample(0xAAAA5555L, x, z, 180.0, 2) * 8.0);
+        int deepOcean = seaLevel - 22 + (int) (OrganicNoise.sample(0xAAAA5555L, localX, localZ, 180.0, 2) * 8.0);
+        deepOcean -= (int) Math.round((1.0 - edgeOceanFalloff) * 22.0);
         return Math.min(seaLevel - 8, Math.min(vanillaHeight, deepOcean));
+    }
+
+    private int calculateTargetHeightCached(int x, int z, int vanillaHeight, RegistryEntry<Biome> biome) {
+        int biomeHash = biome.getKey().map(RegistryKey::getValue).map(Object::hashCode).orElse(0);
+        return columnCache.get().getOrCompute(x, z, vanillaHeight, biomeHash, () -> calculateTargetHeight(x, z, vanillaHeight, biome));
     }
 
     private double paintedLandMask(double x, double z) {
@@ -239,7 +263,7 @@ public class PizzaChunkGenerator extends ChunkGenerator {
                 int worldZ = startZ + localZ;
                 int vanillaHeight = chunk.sampleHeightmap(Heightmap.Type.OCEAN_FLOOR_WG, localX, localZ);
                 RegistryEntry<Biome> biome = chunk.getBiomeForNoiseGen(localX >> 2, vanillaHeight >> 2, localZ >> 2);
-                int targetHeight = calculateTargetHeight(worldX, worldZ, vanillaHeight, biome);
+                int targetHeight = calculateTargetHeightCached(worldX, worldZ, vanillaHeight, biome);
 
                 for (int y = maxY; y >= minY; y--) {
                     mutable.set(worldX, y, worldZ);
@@ -307,6 +331,13 @@ public class PizzaChunkGenerator extends ChunkGenerator {
         return wrapped - 0.5;
     }
 
+    private static double circularFalloff(double distance, double start, double end) {
+        if (distance <= start) return 1.0;
+        if (distance >= end) return 0.0;
+        double t = (distance - start) / Math.max(1.0, end - start);
+        return 1.0 - (t * t * (3.0 - 2.0 * t));
+    }
+
     private record Brush(double centerX, double centerZ, double radiusX, double radiusZ, double strength) {
         private double sample(double x, double z) {
             double dx = (x - centerX) / Math.max(1.0, radiusX);
@@ -321,6 +352,36 @@ public class PizzaChunkGenerator extends ChunkGenerator {
             double dz = (z - centerZ) / Math.max(1.0, radiusZ);
             double mask = 1.0 - Math.sqrt(dx * dx + dz * dz);
             return Math.max(0.0, mask) * height;
+        }
+    }
+
+    private static final class ColumnCache {
+        private static final int SIZE = 4096;
+        private final long[] keys = new long[SIZE];
+        private final int[] vanillaHeights = new int[SIZE];
+        private final int[] biomeHashes = new int[SIZE];
+        private final int[] values = new int[SIZE];
+        private long sequence = 1L;
+
+        private int getOrCompute(int x, int z, int vanillaHeight, int biomeHash, java.util.function.IntSupplier supplier) {
+            long key = (((long) x) << 32) ^ (z & 0xFFFFFFFFL);
+            int slot = (int) (Long.rotateLeft(key, 13) ^ key) & (SIZE - 1);
+
+            if (keys[slot] == key && vanillaHeights[slot] == vanillaHeight && biomeHashes[slot] == biomeHash) {
+                return values[slot];
+            }
+
+            int value = supplier.getAsInt();
+            keys[slot] = key;
+            vanillaHeights[slot] = vanillaHeight;
+            biomeHashes[slot] = biomeHash;
+            values[slot] = value;
+            sequence++;
+            if ((sequence & 1023L) == 0L) {
+                int resetSlot = (int) ((sequence / 1024L) & (SIZE - 1));
+                keys[resetSlot] = 0L;
+            }
+            return value;
         }
     }
 }

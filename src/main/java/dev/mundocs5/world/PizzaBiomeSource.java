@@ -25,20 +25,26 @@ public class PizzaBiomeSource extends BiomeSource {
     public static final MapCodec<PizzaBiomeSource> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             MultiNoiseBiomeSource.CODEC.fieldOf("vanilla").forGetter(PizzaBiomeSource::vanillaBiomeSource),
             Codec.LONG.optionalFieldOf("layout_seed", DEFAULT_LAYOUT_SEED).forGetter(PizzaBiomeSource::layoutSeed),
+            Codec.INT.optionalFieldOf("center_x", 0).forGetter(PizzaBiomeSource::centerX),
+            Codec.INT.optionalFieldOf("center_z", 0).forGetter(PizzaBiomeSource::centerZ),
             LandConfig.CODEC.fieldOf("land_config").forGetter(PizzaBiomeSource::landConfig),
             OceanConfig.CODEC.fieldOf("ocean_config").forGetter(PizzaBiomeSource::oceanConfig)
     ).apply(instance, PizzaBiomeSource::new));
 
     private final MultiNoiseBiomeSource vanillaBiomeSource;
     private final long layoutSeed;
+    private final int centerX;
+    private final int centerZ;
     private final LandConfig landConfig;
     private final OceanConfig oceanConfig;
     private final List<Sector> sectors;
     private final List<RegistryEntry<Biome>> allBiomes;
 
-    public PizzaBiomeSource(MultiNoiseBiomeSource vanillaBiomeSource, long layoutSeed, LandConfig landConfig, OceanConfig oceanConfig) {
+    public PizzaBiomeSource(MultiNoiseBiomeSource vanillaBiomeSource, long layoutSeed, int centerX, int centerZ, LandConfig landConfig, OceanConfig oceanConfig) {
         this.vanillaBiomeSource = vanillaBiomeSource;
         this.layoutSeed = layoutSeed;
+        this.centerX = centerX;
+        this.centerZ = centerZ;
         this.landConfig = landConfig;
         this.oceanConfig = oceanConfig;
         this.sectors = buildSectors();
@@ -53,8 +59,8 @@ public class PizzaBiomeSource extends BiomeSource {
 
     @Override
     public RegistryEntry<Biome> getBiome(int x, int y, int z, MultiNoiseUtil.MultiNoiseSampler noise) {
-        double blockX = x * 4.0;
-        double blockZ = z * 4.0;
+        double blockX = x * 4.0 - centerX;
+        double blockZ = z * 4.0 - centerZ;
         double baseDistance = Math.sqrt(blockX * blockX + blockZ * blockZ);
 
         if (baseDistance >= landConfig.fallbackStart() + 256.0) return vanillaBiomeSource.getBiome(x, y, z, noise);
@@ -70,7 +76,8 @@ public class PizzaBiomeSource extends BiomeSource {
         angle = wrapNormalized(angle);
 
         if (warpedDistance <= landConfig.centerRadius() + centerNoise(blockX, blockZ)) return landConfig.centerBiome();
-        if (warpedDistance >= landConfig.fallbackStart()) return vanillaBiomeSource.getBiome(x, y, z, noise);
+        double edgeProgress = MathHelper.clamp((warpedDistance - landConfig.mainRingEnd()) / Math.max(1.0, landConfig.fallbackStart() - landConfig.mainRingEnd()), 0.0, 1.0);
+        if (warpedDistance >= landConfig.fallbackStart() || edgeProgress > 0.92) return vanillaBiomeSource.getBiome(x, y, z, noise);
 
         boolean coldRegion = isColdSector(angle);
         RegistryEntry<Biome> riverBiome = pickRiverBiome(warpedDistance, angle, blockX, blockZ, coldRegion);
@@ -283,6 +290,8 @@ public class PizzaBiomeSource extends BiomeSource {
 
     private MultiNoiseBiomeSource vanillaBiomeSource() { return vanillaBiomeSource; }
     private long layoutSeed() { return layoutSeed; }
+    private int centerX() { return centerX; }
+    private int centerZ() { return centerZ; }
     private LandConfig landConfig() { return landConfig; }
     private OceanConfig oceanConfig() { return oceanConfig; }
 
