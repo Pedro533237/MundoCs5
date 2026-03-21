@@ -79,14 +79,20 @@ public class PizzaBiomeSource extends BiomeSource {
         double edgeProgress = MathHelper.clamp((warpedDistance - landConfig.mainRingEnd()) / Math.max(1.0, landConfig.fallbackStart() - landConfig.mainRingEnd()), 0.0, 1.0);
         if (warpedDistance >= landConfig.fallbackStart() || edgeProgress > 0.92) return vanillaBiomeSource.getBiome(x, y, z, noise);
 
-        boolean coldRegion = isColdSector(angle);
-        RegistryEntry<Biome> riverBiome = pickRiverBiome(warpedDistance, angle, blockX, blockZ, coldRegion);
+        double sectorAngle = wrapNormalized(
+                angle
+                        + OrganicNoise.sample(layoutSeed ^ 0x51515151L, blockX, blockZ, 180.0, 3) * 0.05
+                        + OrganicNoise.sample(layoutSeed ^ 0x61616161L, baseDistance * 0.2, angle * 2048.0, 1.0, 2) * 0.018
+        );
+
+        boolean coldRegion = isColdSector(sectorAngle);
+        RegistryEntry<Biome> riverBiome = pickRiverBiome(warpedDistance, sectorAngle, blockX, blockZ, coldRegion);
         if (riverBiome != null) return riverBiome;
 
-        if (warpedDistance < landConfig.innerOceanEnd() + innerIslandNoise(blockX, blockZ)) return pickInnerOceanBiome(angle, warpedDistance, blockX, blockZ);
-        if (warpedDistance < landConfig.mainRingEnd()) return pickLandRingBiome(warpedDistance, angle, blockX, blockZ);
+        if (warpedDistance < landConfig.innerOceanEnd() + innerIslandNoise(blockX, blockZ)) return pickInnerOceanBiome(sectorAngle, warpedDistance, blockX, blockZ);
+        if (warpedDistance < landConfig.mainRingEnd()) return pickLandRingBiome(warpedDistance, sectorAngle, blockX, blockZ);
 
-        return pickOuterOceanBiome(warpedDistance, angle, blockX, blockZ);
+        return pickOuterOceanBiome(warpedDistance, sectorAngle, blockX, blockZ);
     }
 
     private RegistryEntry<Biome> pickLandRingBiome(double distance, double angle, double x, double z) {
