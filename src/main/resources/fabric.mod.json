@@ -4,7 +4,9 @@
   "version": "${version}",
   "name": "MundoCs5",
   "description": "Deterministic donut-world worldgen with a mushroom core, inner ocean, biome ring, rivers, and vanilla fallback.",
-  "authors": ["MundoCs5"],
+  "authors": [
+    "MundoCs5"
+  ],
   "environment": "*",
   "entrypoints": {
     "main": [
@@ -15,5 +17,8 @@
     "fabricloader": ">=0.16.14",
     "minecraft": "~1.21.9",
     "java": ">=21"
-  }
+  },
+  "mixins": [
+    "mundocs5.mixins.json"
+  ]
 }
