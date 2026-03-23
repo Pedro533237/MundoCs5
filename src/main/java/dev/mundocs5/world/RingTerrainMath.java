@@ -39,11 +39,16 @@ public final class RingTerrainMath {
             return vanillaDensity;
         }
 
+        double ringMask = ringInfluenceMask(wp.radius());
+        if (ringMask <= 0.0001) {
+            return vanillaDensity;
+        }
+
         double miniMountains = miniMountainDensity(seed, x, y, z, wp.radius());
         double extremeMountains = extremeMountainDensity(seed, x, y, z, wp.angle(), wp.radius());
         double riverCut = riverCarvingDensity(seed, x, y, z, wp.radius());
 
-        double custom = vanillaDensity + miniMountains + extremeMountains + riverCut;
+        double custom = vanillaDensity + (miniMountains + extremeMountains + riverCut) * ringMask;
 
         if (wp.radius() < config.outerBlendStart()) {
             return custom;
@@ -104,7 +109,7 @@ public final class RingTerrainMath {
 
         double h1 = OrganicNoise.sample(seed ^ 0x629A292AL, x, z, 150.0, 3);
         double h2 = OrganicNoise.sample(seed ^ 0x9159015AL, x, z, 74.0, 3);
-        double shape = (Math.abs(h1) * 0.36) + (Math.abs(h2) * 0.24);
+        double shape = (Math.abs(h1) * 0.14) + (Math.abs(h2) * 0.10);
         double yFactor = 1.0 - MathHelper.clamp((y - 68.0) / 96.0, 0.0, 1.0);
         return shape * yFactor;
     }
@@ -114,26 +119,28 @@ public final class RingTerrainMath {
             return 0.0;
         }
 
-        boolean frozenOrBadlands = isFrozenOrBadlandsSector(angle01);
-        boolean plainsStoneMountains = isPlainsWestSector(angle01) && OrganicNoise.sample(seed ^ 0x510E527FL, x, z, 116.0, 3) > 0.58;
-        if (!frozenOrBadlands && !plainsStoneMountains) {
+        double frozenOrBadlandsMask = frozenOrBadlandsSectorMask(angle01);
+        double plainsMask = plainsWestSectorMask(angle01);
+        boolean plainsStoneMountains = plainsMask > 0.0 && OrganicNoise.sample(seed ^ 0x510E527FL, x, z, 116.0, 3) > 0.62;
+        if (frozenOrBadlandsMask <= 0.0 && !plainsStoneMountains) {
             return 0.0;
         }
 
-        double topTarget = 155.0 + (Math.abs(OrganicNoise.sample(seed ^ 0xD807AA98L, x, z, 120.0, 3)) * 70.0);
+        double topTarget = 148.0 + (Math.abs(OrganicNoise.sample(seed ^ 0xD807AA98L, x, z, 120.0, 3)) * 55.0);
         double belowTop = 1.0 - MathHelper.clamp((y - 72.0) / topTarget, 0.0, 1.0);
-        return belowTop * (0.65 + Math.abs(OrganicNoise.sample(seed ^ 0x12835B01L, x, z, 66.0, 2)) * 0.35);
+        double sectorStrength = Math.max(frozenOrBadlandsMask, plainsStoneMountains ? plainsMask : 0.0);
+        return belowTop * sectorStrength * (0.24 + Math.abs(OrganicNoise.sample(seed ^ 0x12835B01L, x, z, 66.0, 2)) * 0.22);
     }
 
     private static double riverCarvingDensity(long seed, int x, int y, int z, double radius) {
         if (!isRiver(seed, x, z, radius)) {
             return 0.0;
         }
-        if (y <= RIVER_FLOOR_Y) {
+        double aboveRiver = (y - RIVER_FLOOR_Y) / 22.0;
+        if (aboveRiver <= 0.0) {
             return 0.0;
         }
-        double dy = (y - RIVER_FLOOR_Y) / 30.0;
-        return -MathHelper.clamp(dy, 0.0, 1.85);
+        return -MathHelper.clamp(aboveRiver, 0.0, 0.85);
     }
 
     public static boolean isFrozenOrBadlandsSector(double angle01) {
@@ -144,6 +151,36 @@ public final class RingTerrainMath {
 
     public static boolean isPlainsWestSector(double angle01) {
         return angle01 >= 0.40 && angle01 < 0.60;
+    }
+
+    private static double ringInfluenceMask(double radius) {
+        // suaviza início e fim do anel para evitar "paredão"
+        double start = smoothstep(radius, 260.0, 340.0);
+        double end = 1.0 - smoothstep(radius, 1260.0, 1360.0);
+        return MathHelper.clamp(start * end, 0.0, 1.0);
+    }
+
+    private static double frozenOrBadlandsSectorMask(double angle01) {
+        double frozen = bandMask(angle01, 0.58, 0.77);
+        double badlands = bandMask(angle01, 0.23, 0.42);
+        return Math.max(frozen, badlands);
+    }
+
+    private static double plainsWestSectorMask(double angle01) {
+        return bandMask(angle01, 0.38, 0.62);
+    }
+
+    private static double bandMask(double value, double min, double max) {
+        if (value <= min || value >= max) return 0.0;
+        double in = smoothstep(value, min, min + 0.03);
+        double out = 1.0 - smoothstep(value, max - 0.03, max);
+        return MathHelper.clamp(in * out, 0.0, 1.0);
+    }
+
+    private static double smoothstep(double value, double edge0, double edge1) {
+        if (edge0 == edge1) return value < edge0 ? 0.0 : 1.0;
+        double t = MathHelper.clamp((value - edge0) / (edge1 - edge0), 0.0, 1.0);
+        return t * t * (3.0 - 2.0 * t);
     }
 
     private static double smooth01(double t) {
